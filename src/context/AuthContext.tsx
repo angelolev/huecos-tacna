@@ -8,11 +8,13 @@ import {
   signInWithCredential,
   signInWithPopup,
   signOut,
+  updateProfile,
 } from 'firebase/auth'
 import type { User } from 'firebase/auth'
 import { FirebaseError } from 'firebase/app'
 import { doc, getDoc } from 'firebase/firestore'
 import { auth, db } from '../lib/firebase'
+import { claimGoogleBonus } from '../lib/profiles'
 import { completeTransfer, prepareTransfer } from '../lib/transfer'
 
 interface AuthValue {
@@ -31,6 +33,20 @@ const AuthContext = createContext<AuthValue | null>(null)
 
 const provider = new GoogleAuthProvider()
 provider.setCustomParameters({ prompt: 'select_account' })
+
+/**
+ * Al VINCULAR una sesión anónima con Google, Firebase solo copia el correo: el nombre y la foto
+ * quedan en `providerData`. Los pasamos al perfil para mostrarlos. Devuelve si cambió algo.
+ */
+async function syncGoogleProfile(u: User) {
+  const google = u.providerData.find((p) => p.providerId === 'google.com')
+  if (!google) return false
+  const displayName = u.displayName || google.displayName
+  const photoURL = u.photoURL || google.photoURL
+  if (displayName === u.displayName && photoURL === u.photoURL) return false
+  await updateProfile(u, { displayName, photoURL })
+  return true
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
@@ -72,11 +88,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [user, version])
 
+  // Cuentas que se vincularon antes de copiar el nombre y la foto de Google.
+  useEffect(() => {
+    if (!user || user.isAnonymous) return
+    syncGoogleProfile(user)
+      .then((changed) => changed && setVersion((v) => v + 1))
+      .catch((e) => console.error('No se pudo copiar el perfil de Google', e))
+  }, [user, version])
+
+  // Bono de puntos la primera vez que la cuenta entra con Google (vinculando o iniciando sesión).
+  useEffect(() => {
+    if (!user || user.isAnonymous || !user.providerData.some((p) => p.providerId === 'google.com')) return
+    // Token fresco: las reglas leen `firebase.identities`, que recién incluye Google tras vincular.
+    user
+      .getIdToken(true)
+      .then(() => claimGoogleBonus(user.uid))
+      .catch((e) => console.error('No se pudo registrar el bono de Google', e))
+  }, [user, version])
+
   const linkGoogle = useCallback(async () => {
     const current = auth.currentUser
     if (!current) throw new Error('Sin sesión')
     try {
-      await linkWithPopup(current, provider)
+      const { user: linked } = await linkWithPopup(current, provider)
+      await syncGoogleProfile(linked).catch((e) => console.error('No se pudo copiar el perfil de Google', e))
       setVersion((v) => v + 1)
       return 'linked' as const
     } catch (err) {

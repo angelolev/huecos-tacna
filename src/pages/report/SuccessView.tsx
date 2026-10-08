@@ -84,7 +84,8 @@ export function SuccessView({
           className="mt-8 w-full rounded-[24px] bg-sky-soft p-4 text-left"
         >
           <p className="mb-3 text-sm text-ink-soft">
-            ¿Quieres ver tus reportes desde cualquier celular? <b className="text-ink">Vincula tu Google</b> (es opcional).
+            ¿Quieres ver tus reportes desde cualquier celular? <b className="text-ink">Vincula tu Google</b> y gana{' '}
+            <b className="text-ink">+{POINTS.google} puntos</b> (es opcional).
           </p>
           <GoogleButton
             label={linkState === 'busy' ? 'Conectando…' : 'Vincular con Google'}
@@ -104,7 +105,7 @@ export function SuccessView({
         </motion.div>
       )}
       {linkState === 'done' && (
-        <p className="mt-8 rounded-full bg-mint-soft px-4 py-2 text-sm font-semibold text-mint-deep">Cuenta vinculada ✓</p>
+        <p className="mt-8 rounded-full bg-mint-soft px-4 py-2 text-sm font-semibold text-mint-deep">Cuenta vinculada ✓ · +{POINTS.google} puntos</p>
       )}
 
       <div className="mt-auto grid w-full gap-3 pt-8">

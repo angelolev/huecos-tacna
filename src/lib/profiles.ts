@@ -1,7 +1,7 @@
-import { collection, collectionGroup, deleteDoc, doc, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore'
+import { collection, collectionGroup, deleteDoc, doc, getDoc, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore'
 import type { Timestamp } from 'firebase/firestore'
 import { db } from './firebase'
-import type { Confirmation } from './points'
+import type { Confirmation, GoogleBonus } from './points'
 import type { Profile } from './types'
 
 export const AVATARS = ['🦙', '🐆', '🦊', '🐻', '🐼', '🐸', '🐙', '🦉', '🐢', '🦜', '🐝', '🦖', '🌵', '🌶️', '🥑', '⚡'] as const
@@ -47,4 +47,21 @@ export function subscribeConfirmations(onData: (c: Confirmation[]) => void, onEr
       ),
     onError,
   )
+}
+
+/** Bonos por entrar con Google (`googleBonus/{uid}`), para los puntos. */
+export function subscribeGoogleBonuses(onData: (b: GoogleBonus[]) => void, onError: (e: Error) => void) {
+  return onSnapshot(
+    collection(db, 'googleBonus'),
+    (snap) => onData(snap.docs.map((d) => ({ uid: d.id, createdAt: (d.data().createdAt as Timestamp | undefined)?.toDate() ?? null }))),
+    onError,
+  )
+}
+
+/** Crea el bono de Google si la cuenta aún no lo tiene. Las reglas exigen Google vinculado y no permiten repetirlo. */
+export async function claimGoogleBonus(uid: string) {
+  const ref = doc(db, 'googleBonus', uid)
+  if ((await getDoc(ref)).exists()) return false
+  await setDoc(ref, { createdAt: serverTimestamp() })
+  return true
 }

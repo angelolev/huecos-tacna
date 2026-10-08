@@ -102,7 +102,7 @@ Comportamiento:
 
 ## Puntos y ranking
 
-Los puntos **no se guardan**: se calculan en `src/lib/points.ts` a partir de los reportes y las confirmaciones, que ya están protegidos por las reglas. Nadie puede editarse su puntaje.
+Los puntos **no se guardan**: se calculan en `src/lib/points.ts` a partir de los reportes, las confirmaciones y el bono de Google, que ya están protegidos por las reglas. Nadie puede editarse su puntaje.
 
 | Acción | Puntos |
 |---|---|
@@ -110,7 +110,8 @@ Los puntos **no se guardan**: se calculan en `src/lib/points.ts` a partir de los
 | El admin lo verifica | +10 |
 | Lo marcan como reparado | +10 |
 | Otro vecino confirma tu reporte | +2 c/u (máx. +10 por reporte) |
-| Confirmar el hueco de otro vecino | +2 |
+| Confirmar el reporte de otro vecino | +2 |
+| Entrar con Google por primera vez (una vez por cuenta, `googleBonus/{uid}`) | +10 |
 | El admin lo marca como **falso** | −20 (y se pierden los demás puntos de ese reporte) |
 
 - **Ranking** (`/ranking`): "Este mes" (reportes y confirmaciones del mes) e "Histórico", por ciudad. Solo aparece quien eligió un **alias + emoji** (`profiles/{uid}`) y tiene puntos positivos. Nunca se muestra el nombre real.

@@ -6,7 +6,8 @@ const RULES = [
   { emoji: '✅', text: 'El equipo verifica tu reporte', points: `+${POINTS.verified}` },
   { emoji: '🛠️', text: 'Lo reparan', points: `+${POINTS.fixed}` },
   { emoji: '🙌', text: 'Vecinos confirman tu reporte', points: `+${POINTS.confirmationReceived} c/u (máx. +${POINTS.confirmationReceivedMax})` },
-  { emoji: '👀', text: 'Confirmas el hueco de otro vecino', points: `+${POINTS.confirmGiven}` },
+  { emoji: '👀', text: 'Confirmas el reporte de otro vecino', points: `+${POINTS.confirmGiven}` },
+  { emoji: '🔐', text: 'Entras con Google por primera vez', points: `+${POINTS.google}` },
   { emoji: '🚫', text: 'Tu reporte resulta falso', points: `${POINTS.rejected}` },
 ]
 

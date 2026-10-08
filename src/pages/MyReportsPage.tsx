@@ -59,7 +59,8 @@ export default function MyReportsPage() {
         {user?.isAnonymous && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-5 rounded-[24px] bg-sky-soft p-4">
             <p className="mb-3 text-sm text-ink-soft">
-              Tus reportes están guardados <b className="text-ink">solo en este celular</b>. Vincula tu Google para no perderlos.
+              Tus reportes están guardados <b className="text-ink">solo en este celular</b>. Vincula tu Google para no perderlos y gana{' '}
+              <b className="text-ink">+{POINTS.google} puntos</b>.
             </p>
             <GoogleButton
               label={linking ? 'Conectando…' : 'Vincular con Google'}
@@ -69,7 +70,11 @@ export default function MyReportsPage() {
                 setLinkMsg(null)
                 try {
                   const r = await linkGoogle()
-                  if (r === 'switched') setLinkMsg('Esa cuenta ya existía: iniciaste sesión con ella y le pasamos tus reportes y puntos.')
+                  setLinkMsg(
+                    r === 'switched'
+                      ? 'Esa cuenta ya existía: iniciaste sesión con ella y le pasamos tus reportes y puntos.'
+                      : `¡Cuenta vinculada! Ganaste +${POINTS.google} puntos 🎉`,
+                  )
                 } catch (err) {
                   setLinkMsg(authErrorMessage(err))
                 } finally {

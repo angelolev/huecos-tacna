@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
-import { subscribeConfirmations, subscribeProfiles } from '../lib/profiles'
+import { subscribeConfirmations, subscribeGoogleBonuses, subscribeProfiles } from '../lib/profiles'
 import { levelFor, pointEvents, totalFor } from '../lib/points'
-import type { Confirmation } from '../lib/points'
+import type { Confirmation, GoogleBonus } from '../lib/points'
 import type { Profile, Report } from '../lib/types'
 
-/** Confirmaciones + perfiles + eventos de puntos, a partir de los reportes ya cargados. */
+/** Confirmaciones + bonos de Google + perfiles + eventos de puntos, a partir de los reportes ya cargados. */
 export function usePointsData(reports: Report[]) {
   const [confirmations, setConfirmations] = useState<Confirmation[] | null>(null)
   const [profiles, setProfiles] = useState<Map<string, Profile> | null>(null)
+  const [bonuses, setBonuses] = useState<GoogleBonus[] | null>(null)
 
   useEffect(
     () =>
@@ -26,8 +27,21 @@ export function usePointsData(reports: Report[]) {
     [],
   )
 
-  const events = useMemo(() => pointEvents(reports, confirmations ?? []), [reports, confirmations])
-  return { events, profiles: profiles ?? new Map<string, Profile>(), loading: confirmations === null || profiles === null }
+  useEffect(
+    () =>
+      subscribeGoogleBonuses(setBonuses, (e) => {
+        console.error('No se pudieron cargar los bonos de Google', e)
+        setBonuses([])
+      }),
+    [],
+  )
+
+  const events = useMemo(() => pointEvents(reports, confirmations ?? [], bonuses ?? []), [reports, confirmations, bonuses])
+  return {
+    events,
+    profiles: profiles ?? new Map<string, Profile>(),
+    loading: confirmations === null || profiles === null || bonuses === null,
+  }
 }
 
 /** Puntos, nivel y perfil de una persona. */

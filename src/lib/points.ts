@@ -1,9 +1,9 @@
 import type { Profile, Report } from './types'
 
 /**
- * Reglas de puntos. Los puntos NO se guardan: se calculan a partir de los reportes y las
- * confirmaciones, que ya están protegidos por las reglas de Firestore (nadie puede editarse
- * su puntaje).
+ * Reglas de puntos. Los puntos NO se guardan: se calculan a partir de los reportes, las
+ * confirmaciones y el bono de Google (`googleBonus/{uid}`), que ya están protegidos por las
+ * reglas de Firestore (nadie puede editarse su puntaje).
  */
 export const POINTS = {
   report: 10, // enviar un reporte
@@ -11,7 +11,8 @@ export const POINTS = {
   fixed: 10, // lo marcan como reparado
   confirmationReceived: 2, // otro vecino confirma tu reporte…
   confirmationReceivedMax: 10, // …hasta este máximo por reporte
-  confirmGiven: 2, // confirmas un hueco de otra persona
+  confirmGiven: 2, // confirmas el reporte de otra persona
+  google: 10, // entras con Google por primera vez (una sola vez por cuenta)
   rejected: -20, // el admin lo marca como falso (y se pierden los demás puntos de ese reporte)
 } as const
 
@@ -39,7 +40,13 @@ export interface Confirmation {
   createdAt: Date | null
 }
 
-export type PointKind = 'report' | 'verified' | 'fixed' | 'confirmations' | 'confirmGiven' | 'rejected'
+/** Bono por entrar con Google (`googleBonus/{uid}`). */
+export interface GoogleBonus {
+  uid: string
+  createdAt: Date | null
+}
+
+export type PointKind = 'report' | 'verified' | 'fixed' | 'confirmations' | 'confirmGiven' | 'rejected' | 'google'
 
 export interface PointEvent {
   /** Estable: permite saber qué eventos ya vio la persona. */
@@ -47,6 +54,7 @@ export interface PointEvent {
   uid: string
   kind: PointKind
   points: number
+  /** Vacío en el bono de Google (no viene de un reporte). */
   reportId: string
   cityId: string | null
   /** Mes al que suma (fecha del reporte o de la confirmación). */
@@ -55,7 +63,7 @@ export interface PointEvent {
 }
 
 /** Todos los eventos de puntos que se desprenden de los datos. */
-export function pointEvents(reports: Report[], confirmations: Confirmation[]): PointEvent[] {
+export function pointEvents(reports: Report[], confirmations: Confirmation[], bonuses: GoogleBonus[] = []): PointEvent[] {
   const events: PointEvent[] = []
   const byId = new Map(reports.map((r) => [r.id, r]))
 
@@ -94,6 +102,10 @@ export function pointEvents(reports: Report[], confirmations: Confirmation[]): P
       address: r.address,
     })
   }
+
+  for (const b of bonuses) {
+    events.push({ id: `google:${b.uid}`, uid: b.uid, kind: 'google', points: POINTS.google, reportId: '', cityId: null, at: b.createdAt, address: null })
+  }
   return events
 }
 
@@ -116,13 +128,20 @@ export interface RankingRow {
 /** Puntos por persona (solo quienes tienen alias aparecen en el ranking público). */
 export function ranking(events: PointEvent[], profiles: Map<string, Profile>, opts: { period: Period; cityId?: string | null }) {
   const totals = new Map<string, RankingRow>()
-  for (const e of events) {
-    if (!inPeriod(e.at, opts.period)) continue
-    if (opts.cityId && e.cityId !== opts.cityId) continue
+  const add = (e: PointEvent) => {
     const row = totals.get(e.uid) ?? { uid: e.uid, points: 0, reports: 0, profile: profiles.get(e.uid) ?? null }
     row.points += e.points
     if (e.kind === 'report') row.reports++
     totals.set(e.uid, row)
+  }
+  const inScope = events.filter((e) => inPeriod(e.at, opts.period))
+  for (const e of inScope) {
+    if (opts.cityId && e.cityId !== opts.cityId) continue
+    add(e)
+  }
+  // El bono de Google no tiene ciudad: en el ranking de una ciudad solo suma a quien ya participa en ella.
+  if (opts.cityId) {
+    for (const e of inScope) if (e.kind === 'google' && totals.has(e.uid)) add(e)
   }
   return [...totals.values()].sort((a, b) => b.points - a.points || b.reports - a.reports)
 }
@@ -144,7 +163,9 @@ export function describeEvent(e: PointEvent) {
     case 'rejected':
       return `Tu reporte${where} fue marcado como falso`
     case 'confirmGiven':
-      return `Confirmaste un hueco${where}`
+      return `Confirmaste un reporte${where}`
+    case 'google':
+      return 'Entraste con Google'
     default:
       return `Reportaste un hueco${where}`
   }

@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext'
 import { BottomSheet } from './BottomSheet'
 import { GoogleButton } from './GoogleButton'
 import { authErrorMessage } from '../lib/authErrors'
+import { POINTS } from '../lib/points'
 
 export function AccountSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { user, isAdmin, linkGoogle, signOutUser } = useAuth()
@@ -20,7 +21,7 @@ export function AccountSheet({ open, onClose }: { open: boolean; onClose: () => 
       const result = await linkGoogle()
       setMsg(
         result === 'linked'
-          ? '¡Listo! Tus reportes ahora están guardados en tu cuenta de Google.'
+          ? `¡Listo! Tus reportes ahora están guardados en tu cuenta de Google. Ganaste +${POINTS.google} puntos 🎉`
           : 'Esa cuenta ya existía: iniciaste sesión con ella y le pasamos tus reportes y puntos.',
       )
     } catch (err) {
@@ -48,7 +49,7 @@ export function AccountSheet({ open, onClose }: { open: boolean; onClose: () => 
                 <Cloud className="mt-0.5 h-4 w-4 shrink-0 text-sky-deep" />
                 <span>
                   Si quieres, vincula tu Google para <b className="text-ink">no perder tus reportes</b> si cambias de
-                  celular.
+                  celular y gana <b className="text-ink">+{POINTS.google} puntos</b>.
                 </span>
               </p>
               <GoogleButton onClick={onLink} disabled={busy} label={busy ? 'Conectando…' : 'Vincular con Google'} />

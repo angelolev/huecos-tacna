@@ -71,6 +71,16 @@ service cloud.firestore {
       allow read: if true;
     }
 
+    // Bono único por entrar con Google: solo lo crea la propia cuenta con Google vinculado,
+    // una sola vez (sin update ni delete). Público para calcular los puntos.
+    match /googleBonus/{uid} {
+      allow read: if true;
+      allow create: if signedIn() && request.auth.uid == uid
+        && 'google.com' in request.auth.token.firebase.identities
+        && request.resource.data.keys().hasOnly(['createdAt'])
+        && request.resource.data.createdAt == request.time;
+    }
+
     // Traspaso de reportes de una sesión anónima a una cuenta de Google ya existente.
     // 1) El anónimo crea transfers/{uidAnonimo} con un código secreto (solo él puede leerlo).
     // 2) Ya con Google, la cuenta destino se asigna como `to` probando que conoce el código.
