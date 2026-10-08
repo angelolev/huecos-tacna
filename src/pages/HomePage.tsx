@@ -21,7 +21,20 @@ const spring = { type: 'spring', stiffness: 260, damping: 22 } as const
 type View = 'near' | 'city' | null
 
 /** Espacio que ocupan la barra superior y la tarjeta inferior sobre el mapa. */
-const MAP_PADDING: google.maps.Padding = { top: 130, bottom: 330, left: 24, right: 24 }
+const MAP_PADDING = { top: 130, bottom: 330, left: 24, right: 24 }
+
+/**
+ * Reduce el margen en pantallas bajas (laptop, celular en horizontal): si el margen
+ * supera el alto del mapa, Google Maps no puede encuadrar y se aleja hasta el mundo entero.
+ */
+function paddingFor(map: google.maps.Map): google.maps.Padding {
+  const h = map.getDiv().clientHeight
+  const vertical = MAP_PADDING.top + MAP_PADDING.bottom
+  const max = h * 0.6
+  if (!h || vertical <= max) return MAP_PADDING
+  const k = max / vertical
+  return { ...MAP_PADDING, top: Math.round(MAP_PADDING.top * k), bottom: Math.round(MAP_PADDING.bottom * k) }
+}
 
 export default function HomePage() {
   const { user } = useAuth()
@@ -247,7 +260,7 @@ function ViewController({ view, me, reports }: { view: View; me: LatLng | null; 
     if (!me) return
     if (lastNear.current && metersBetween(lastNear.current, me) < 60) return
     lastNear.current = me
-    map.fitBounds(boundsAround(me, NEAR_RADIUS_M), MAP_PADDING)
+    map.fitBounds(boundsAround(me, NEAR_RADIUS_M), paddingFor(map))
   }, [map, view, me])
 
   // "Toda la ciudad": la zona urbana más cualquier reporte que quede fuera de ella.
@@ -255,7 +268,7 @@ function ViewController({ view, me, reports }: { view: View; me: LatLng | null; 
     if (!map || view !== 'city') return
     const bounds = new google.maps.LatLngBounds(TACNA_CITY_BOUNDS)
     reports.forEach((r) => bounds.extend({ lat: r.lat, lng: r.lng }))
-    map.fitBounds(bounds, MAP_PADDING)
+    map.fitBounds(bounds, paddingFor(map))
   }, [map, view]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return null
