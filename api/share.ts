@@ -20,7 +20,8 @@ const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replac
 function setMeta(html: string, attr: 'name' | 'property', key: string, value: string) {
   const re = new RegExp(`<meta\\s+${attr}="${key.replace(/[:]/g, '\\:')}"\\s+content="[^"]*"\\s*/?>`)
   const tag = `<meta ${attr}="${key}" content="${esc(value)}" />`
-  return re.test(html) ? html.replace(re, tag) : html.replace('</head>', `    ${tag}\n  </head>`)
+  // Reemplazo con función: así un "$&" o "$1" en el texto del usuario no se interpreta como patrón.
+  return re.test(html) ? html.replace(re, () => tag) : html.replace('</head>', () => `    ${tag}\n  </head>`)
 }
 
 let shellCache: { html: string; at: number } | null = null
@@ -77,8 +78,8 @@ export async function GET(request: Request) {
   const pageUrl = `${SITE}/h/${id}`
   const image = report.photo ?? `${SITE}/og-image.png`
 
-  let out = shell.replace(/<title>[^<]*<\/title>/, `<title>${esc(`${title} · Huecazo`)}</title>`)
-  out = out.replace(/<link rel="canonical" href="[^"]*"\s*\/?>/, `<link rel="canonical" href="${pageUrl}" />`)
+  let out = shell.replace(/<title>[^<]*<\/title>/, () => `<title>${esc(`${title} · Huecazo`)}</title>`)
+  out = out.replace(/<link rel="canonical" href="[^"]*"\s*\/?>/, () => `<link rel="canonical" href="${pageUrl}" />`)
   out = setMeta(out, 'name', 'description', description)
   // Las páginas de cada reporte sirven para compartir, no para el índice de Google.
   out = setMeta(out, 'name', 'robots', 'noindex, follow')

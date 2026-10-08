@@ -152,6 +152,18 @@ service cloud.firestore {
                 : (id == 'tacna' && inLegacyTacna(d)));
       }
 
+      // Cada foto debe ser un archivo propio en el bucket del proyecto: reports/{uid}/{reportId}/1|2.jpg|webp.
+      // Evita reportes que apunten a imágenes de terceros (se verían en el mapa y al compartir).
+      function validPhoto(p) {
+        let file = '(1|2)[.](jpg|webp)';
+        return p is map && p.keys().hasOnly(['url', 'path']) && p.keys().hasAll(['url', 'path'])
+          && p.path is string
+          && p.path.matches('^reports/' + request.auth.uid + '/' + reportId + '/' + file + '$')
+          && p.url is string
+          && p.url.matches('^https://firebasestorage[.]googleapis[.]com/v0/b/huecos-603c6[.]firebasestorage[.]app/o/reports%2F'
+               + request.auth.uid + '%2F' + reportId + '%2F' + file + '[?]alt=media&token=[A-Za-z0-9-]+$');
+      }
+
       function validNewReport() {
         let d = request.resource.data;
         let required = ['lat', 'lng', 'geohash', 'photos', 'severity', 'note', 'status',
@@ -161,6 +173,7 @@ service cloud.firestore {
           && cityOk(d)
           && d.geohash is string && d.geohash.size() >= 7 && d.geohash.size() <= 12
           && d.photos is list && d.photos.size() >= 1 && d.photos.size() <= 2
+          && validPhoto(d.photos[0]) && (d.photos.size() == 1 || validPhoto(d.photos[1]))
           && d.severity in ['pequeno', 'mediano', 'peligroso']
           && d.note is string && d.note.size() <= 280
           && d.status == 'pendiente'

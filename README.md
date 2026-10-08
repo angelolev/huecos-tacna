@@ -132,6 +132,20 @@ Después de desplegar:
 1. **Google Search Console**: verifica `huecazo.com` (registro DNS TXT en Vercel → Domains) y envía `https://huecazo.com/sitemap.xml`.
 2. **Probar vistas previas**: [Facebook Sharing Debugger](https://developers.facebook.com/tools/debug/) (también actualiza la caché de WhatsApp) y [Rich Results Test](https://search.google.com/test/rich-results) para las FAQ.
 
+## Seguridad
+
+- **Reglas de Firestore y Storage** (`firestore.rules`, `storage.rules`). Validan cada campo y verifican:
+  - **Reportes**: que la ciudad esté activa y el punto dentro de su zona; fotos propias en el bucket del proyecto (nunca URLs externas); 1 reporte cada 2 minutos.
+  - **Confirmaciones**: una por persona, y nunca del propio reporte.
+  - **Perfiles**: solo alias y emoji válidos.
+  - **Traspasos**: con código secreto y vencimiento de 10 minutos.
+  - **Admin**: correo verificado más un documento en `admins/{email}`.
+- **Cabeceras** (`vercel.json`): CSP estricta, `X-Frame-Options: DENY` y `frame-ancestors 'none'`, `nosniff`, `Referrer-Policy`, `Permissions-Policy` (cámara y GPS solo en el propio sitio) y COOP compatible con el login de Google. HSTS lo pone Vercel.
+  - La CSP permite `'wasm-unsafe-eval'` porque Google Maps compila WebAssembly. No habilita `eval()` de JavaScript.
+- **Si agregas un servicio externo**, súmalo a la CSP y prueba el build con la CSP como `<meta>` antes de publicar.
+- **Dependencias**: Dependabot (`.github/dependabot.yml`). Para revisarlas a mano: `pnpm audit --prod`. `@grpc/grpc-js` está forzado a ≥1.13.6 con `pnpm.overrides`.
+- **Claves públicas**: las claves web de Firebase y de Google Maps van dentro del código del navegador; es normal. Deben estar **restringidas por dominio** en Google Cloud → Credenciales.
+
 ## Modelo de datos
 
 ```

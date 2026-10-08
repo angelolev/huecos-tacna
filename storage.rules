@@ -5,6 +5,8 @@ service firebase.storage {
       allow read: if true;
       allow create: if request.auth != null
         && request.auth.uid == uid
+        // Máximo 2 fotos por reporte, con los nombres que genera la app.
+        && file.matches('^(1|2)[.](jpg|webp)$')
         && request.resource.size < 1.5 * 1024 * 1024
         && request.resource.contentType.matches('image/(webp|jpeg|png)');
       // Requiere aceptar en consola el permiso de reglas entre servicios (Storage -> Firestore).
