@@ -7,11 +7,13 @@ import { GoogleButton } from '../../components/GoogleButton'
 import { PinMark } from '../../components/Logo'
 import AdminPage from './AdminPage'
 import { authErrorMessage } from '../../lib/authErrors'
+import { useDocumentMeta } from '../../hooks/useDocumentMeta'
 
 export default function AdminGate() {
   const { user, loading, isAdmin, adminChecked, signInGoogle, signOutUser } = useAuth()
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
+  useDocumentMeta({ title: 'Panel de control', path: '/admin', noindex: true })
 
   if (loading || (user && !user.isAnonymous && !adminChecked)) {
     return (

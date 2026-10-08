@@ -100,6 +100,18 @@ Comportamiento:
 - **Pausar una ciudad** deja de aceptar reportes nuevos, pero los existentes se siguen viendo. Las ciudades no se borran.
 - **La primera vez que un admin abre el panel**, se crea automáticamente la ciudad **Tacna** y se asigna `cityId` a los reportes antiguos.
 
+## SEO y redes
+
+- **Metadatos base** en `index.html`: título y descripción con foco local ("huecos en las pistas de Tacna"), Open Graph y Twitter con `public/og-image.png` (1200×630), y datos estructurados JSON-LD (`WebSite` y `WebApplication`).
+- **Metadatos por página**: `useDocumentMeta()` (`src/hooks/useDocumentMeta.ts`) ajusta título, descripción, URL canónica y robots. `/admin` y `/mis-reportes` llevan `noindex`, también como cabecera `X-Robots-Tag` en `vercel.json`.
+- **Contenido indexable**: `/acerca` ("¿Qué es Huecazo?") con pasos, estados y preguntas frecuentes, más JSON-LD `FAQPage`.
+- **`robots.txt` y `sitemap.xml`** en `public/`. Si agregas páginas públicas, añádelas al sitemap.
+- **Compartir un reporte**: `https://huecazo.com/h/<id>`. La función `api/share.ts` devuelve el HTML con la **foto del hueco**, la dirección y la gravedad como vista previa (WhatsApp, Facebook y X no ejecutan JavaScript). En el navegador redirige al reporte en el mapa. Las fotos se guardan en JPEG para que todas las redes las acepten.
+
+Después de desplegar:
+1. **Google Search Console**: verifica `huecazo.com` (registro DNS TXT en Vercel → Domains) y envía `https://huecazo.com/sitemap.xml`.
+2. **Probar vistas previas**: [Facebook Sharing Debugger](https://developers.facebook.com/tools/debug/) (también actualiza la caché de WhatsApp) y [Rich Results Test](https://search.google.com/test/rich-results) para las FAQ.
+
 ## Modelo de datos
 
 ```

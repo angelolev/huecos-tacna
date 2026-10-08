@@ -1,0 +1,8 @@
+# Huecazo — https://huecazo.com
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /mis-reportes
+Disallow: /api/
+
+Sitemap: https://huecazo.com/sitemap.xml

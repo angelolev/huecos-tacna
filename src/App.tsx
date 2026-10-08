@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react'
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes, useParams } from 'react-router-dom'
 import { LoaderCircle } from 'lucide-react'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { CitiesProvider } from './context/CitiesContext'
@@ -11,6 +11,7 @@ import HomePage from './pages/HomePage'
 const ReportPage = lazy(() => import('./pages/report/ReportPage'))
 const MyReportsPage = lazy(() => import('./pages/MyReportsPage'))
 const AdminGate = lazy(() => import('./pages/admin/AdminGate'))
+const AboutPage = lazy(() => import('./pages/AboutPage'))
 
 function Splash() {
   return (
@@ -18,6 +19,11 @@ function Splash() {
       <LoaderCircle className="h-7 w-7 animate-spin text-coral" />
     </div>
   )
+}
+
+function ShareRedirect() {
+  const { id } = useParams()
+  return <Navigate to={id ? `/?r=${encodeURIComponent(id)}` : '/'} replace />
 }
 
 function AppRoutes() {
@@ -30,6 +36,9 @@ function AppRoutes() {
         <Route path="/reportar" element={<ReportPage />} />
         <Route path="/mis-reportes" element={<MyReportsPage />} />
         <Route path="/admin" element={<AdminGate />} />
+        <Route path="/acerca" element={<AboutPage />} />
+        {/* Enlace para compartir un reporte (con vista previa de su foto, ver api/share.ts) */}
+        <Route path="/h/:id" element={<ShareRedirect />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Suspense>

@@ -5,14 +5,16 @@ import { Check, MapPinned, Plus } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { GoogleButton } from '../../components/GoogleButton'
 import { confetti, haptic } from '../../lib/fx'
+import { ShareButton } from '../../components/ShareButton'
+import type { Severity } from '../../lib/types'
 import { authErrorMessage } from '../../lib/authErrors'
 
 export function SuccessView({
-  reportId,
+  report,
   kind,
   onAnother,
 }: {
-  reportId: string
+  report: { id: string; address: string | null; severity: Severity }
   kind: 'created' | 'confirmed'
   onAnother: () => void
 }) {
@@ -97,9 +99,10 @@ export function SuccessView({
       )}
 
       <div className="mt-auto grid w-full gap-3 pt-8">
-        <Link to={`/?r=${reportId}`} className="btn-primary">
+        <Link to={`/?r=${report.id}`} className="btn-primary">
           <MapPinned className="h-5 w-5" /> Verlo en el mapa
         </Link>
+        <ShareButton report={report} label="Compartir con mis vecinos" />
         <button className="btn-soft" onClick={onAnother}>
           <Plus className="h-4 w-4" /> Reportar otro hueco
         </button>

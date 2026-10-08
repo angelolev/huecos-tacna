@@ -9,10 +9,12 @@ import { SeverityBadge, StatusTrack } from '../components/Badges'
 import { GoogleButton } from '../components/GoogleButton'
 import { timeAgo } from '../lib/format'
 import { authErrorMessage } from '../lib/authErrors'
+import { useDocumentMeta } from '../hooks/useDocumentMeta'
 
 export default function MyReportsPage() {
   const { user, linkGoogle } = useAuth()
   const { reports, loading } = useMyReports(user?.uid)
+  useDocumentMeta({ title: 'Mis reportes', path: '/mis-reportes', noindex: true })
   const [linking, setLinking] = useState(false)
   const [linkMsg, setLinkMsg] = useState<string | null>(null)
 

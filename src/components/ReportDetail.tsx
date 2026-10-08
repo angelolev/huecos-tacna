@@ -6,6 +6,7 @@ import { formatCoords, googleMapsLink } from '../lib/geo'
 import type { Report } from '../lib/types'
 import { SeverityBadge, StatusBadge, StatusTrack } from './Badges'
 import { Lightbox } from './Lightbox'
+import { ShareButton } from './ShareButton'
 
 export function PhotoStrip({ report, tall }: { report: Report; tall?: boolean }) {
   const [active, setActive] = useState(0)
@@ -109,10 +110,13 @@ export function ReportDetail({ report, actions, tallPhotos }: { report: Report; 
 
         <div className="flex flex-col gap-3 pt-1">
           {actions}
-          <a href={googleMapsLink(report)} target="_blank" rel="noreferrer" className="btn-soft">
-            <Navigation className="h-4 w-4" />
-            Abrir en Google Maps
-          </a>
+          <div className="grid grid-cols-2 gap-2">
+            <ShareButton report={report} className="btn-soft px-3" />
+            <a href={googleMapsLink(report)} target="_blank" rel="noreferrer" className="btn-soft px-3">
+              <Navigation className="h-4 w-4" />
+              Cómo llegar
+            </a>
+          </div>
         </div>
       </div>
     </div>

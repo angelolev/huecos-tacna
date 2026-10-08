@@ -28,8 +28,11 @@ export default defineConfig(({ mode }) => ({
         ],
       },
       workbox: {
-        navigateFallbackDenylist: [/^\/__/],
+        // /api: funciones de Vercel; /h/:id se resuelve en la app tras cargar.
+        navigateFallbackDenylist: [/^\/__/, /^\/api\//],
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        // La imagen para redes no se necesita sin conexión.
+        globIgnores: ['og-image.png'],
       },
     }),
   ],

@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext'
 import { useCities } from '../../context/CitiesContext'
 import { haptic } from '../../lib/fx'
 import { useGeoWatch } from '../../hooks/useGeoWatch'
+import { useDocumentMeta } from '../../hooks/useDocumentMeta'
 import { confirmReport, createReport, findNearby, hasConfirmed, secondsUntilCanReport, withTimeout } from '../../lib/reports'
 import type { LatLng, Severity } from '../../lib/types'
 import { PhotosStep } from './PhotosStep'
@@ -33,6 +34,11 @@ export default function ReportPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const { enabledCityFor } = useCities()
+  useDocumentMeta({
+    title: 'Reportar un hueco',
+    description: 'Reporta un hueco en la pista en 30 segundos: toma una foto, marca la ubicación y envíalo, sin registrarte.',
+    path: '/reportar',
+  })
 
   const [step, setStep] = useState<Step>(0)
   const [dir, setDir] = useState(1)
@@ -50,7 +56,7 @@ export default function ReportPage() {
   const [candidates, setCandidates] = useState<NearbyReport[]>([])
   const [progress, setProgress] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [done, setDone] = useState<{ id: string; kind: 'created' | 'confirmed' } | null>(null)
+  const [done, setDone] = useState<{ id: string; kind: 'created' | 'confirmed'; address: string | null; severity: Severity } | null>(null)
   const [wait, setWait] = useState(0)
 
   // Si el permiso de ubicación ya está concedido, encendemos el GPS desde el paso de fotos
@@ -120,7 +126,7 @@ export default function ReportPage() {
         await confirmReport(r.id, user.uid)
       }
       setCandidates([])
-      setDone({ id: r.id, kind: 'confirmed' })
+      setDone({ id: r.id, kind: 'confirmed', address: r.address, severity: r.severity })
     } catch (err) {
       console.error(err)
       setCandidates([])
@@ -155,7 +161,7 @@ export default function ReportPage() {
         address,
         onProgress: setProgress,
       })
-      setDone({ id, kind: 'created' })
+      setDone({ id, kind: 'created', address, severity })
     } catch (err) {
       console.error(err)
       setError('No se pudo enviar el reporte. Revisa tu conexión e intenta de nuevo.')
@@ -265,7 +271,7 @@ export default function ReportPage() {
 
       <main className="relative flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden">
         {done ? (
-          <SuccessView reportId={done.id} kind={done.kind} onAnother={reset} />
+          <SuccessView report={done} kind={done.kind} onAnother={reset} />
         ) : (
           <AnimatePresence mode="popLayout" initial={false} custom={dir}>
             <motion.div

@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
-import { Building2, Camera, ListChecks, LoaderCircle, Navigation, UserRound } from 'lucide-react'
+import { Building2, Camera, Info, ListChecks, LoaderCircle, Navigation, UserRound } from 'lucide-react'
 import { Circle, useMap } from '@vis.gl/react-google-maps'
 import { useAuth } from '../context/AuthContext'
 import { useReports } from '../hooks/useReports'
 import { useCountUp } from '../hooks/useCountUp'
 import { useGeoWatch } from '../hooks/useGeoWatch'
+import { useDocumentMeta } from '../hooks/useDocumentMeta'
 import { Logo } from '../components/Logo'
 import { ReportsMap } from '../components/ReportsMap'
 import { ReportSheet } from '../components/ReportSheet'
@@ -43,6 +44,7 @@ export default function HomePage() {
   const [params, setParams] = useSearchParams()
   const [show, setShow] = useState<Record<'activos' | 'reparados', boolean>>({ activos: true, reparados: false })
   const [accountOpen, setAccountOpen] = useState(false)
+  useDocumentMeta()
 
   const selectedId = params.get('r')
   // Si llegamos con un reporte en la URL, mostramos ese reporte y no la zona del usuario.
@@ -212,12 +214,17 @@ export default function HomePage() {
             <Link to="/reportar" onClick={() => haptic(15)} className="btn-primary w-full text-xl">
               <Camera className="h-6 w-6" /> Reportar un hueco
             </Link>
-            <Link
-              to="/mis-reportes"
-              className="mt-3 flex items-center justify-center gap-2 rounded-full py-2 text-sm font-semibold text-ink-soft transition active:scale-95"
-            >
-              <ListChecks className="h-4 w-4" /> Ver mis reportes
-            </Link>
+            <nav className="mt-3 flex items-center justify-center gap-1 text-sm font-semibold text-ink-soft">
+              <Link to="/mis-reportes" className="flex items-center gap-1.5 rounded-full px-3 py-2 transition active:scale-95">
+                <ListChecks className="h-4 w-4" /> Mis reportes
+              </Link>
+              <span className="text-ink-faint" aria-hidden>
+                ·
+              </span>
+              <Link to="/acerca" className="flex items-center gap-1.5 rounded-full px-3 py-2 transition active:scale-95">
+                <Info className="h-4 w-4" /> ¿Qué es Huecazo?
+              </Link>
+            </nav>
           </div>
         </motion.div>
       </footer>
