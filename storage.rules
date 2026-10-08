@@ -1,0 +1,16 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /reports/{uid}/{reportId}/{file} {
+      allow read: if true;
+      allow create: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.size < 1.5 * 1024 * 1024
+        && request.resource.contentType.matches('image/(webp|jpeg|png)');
+      // Requiere aceptar en consola el permiso de reglas entre servicios (Storage -> Firestore).
+      allow delete: if request.auth != null
+        && request.auth.token.email_verified == true
+        && firestore.exists(/databases/(default)/documents/admins/$(request.auth.token.email));
+    }
+  }
+}

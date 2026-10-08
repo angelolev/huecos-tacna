@@ -1,0 +1,99 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // Admins: documento admins/{email} creado a mano desde la consola.
+    function isAdmin() {
+      return signedIn()
+        && request.auth.token.email != null
+        && request.auth.token.email_verified == true
+        && exists(/databases/$(database)/documents/admins/$(request.auth.token.email));
+    }
+
+    function rateDoc(uid) {
+      return /databases/$(database)/documents/rateLimits/$(uid);
+    }
+
+    match /admins/{email} {
+      allow read: if signedIn() && request.auth.token.email == email;
+      allow write: if false;
+    }
+
+    // Un reporte cada 2 minutos por usuario (anónimo o Google).
+    match /rateLimits/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow create: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['lastReportAt'])
+        && request.resource.data.lastReportAt == request.time;
+      allow update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['lastReportAt'])
+        && request.resource.data.lastReportAt == request.time
+        && resource.data.lastReportAt < request.time - duration.value(2, 'm');
+    }
+
+    match /reports/{reportId} {
+      function reportPath() {
+        return /databases/$(database)/documents/reports/$(reportId);
+      }
+
+      function confirmationPath(uid) {
+        return /databases/$(database)/documents/reports/$(reportId)/confirmations/$(uid);
+      }
+
+      function validNewReport() {
+        let d = request.resource.data;
+        let fields = ['lat', 'lng', 'geohash', 'photos', 'severity', 'note', 'status',
+                      'confirmations', 'reporterUid', 'address', 'createdAt', 'updatedAt'];
+        return d.keys().hasOnly(fields) && d.keys().hasAll(fields)
+          // Región Tacna (margen amplio)
+          && d.lat is number && d.lat > -18.6 && d.lat < -16.9
+          && d.lng is number && d.lng > -71.1 && d.lng < -69.4
+          && d.geohash is string && d.geohash.size() >= 7 && d.geohash.size() <= 12
+          && d.photos is list && d.photos.size() >= 1 && d.photos.size() <= 2
+          && d.severity in ['pequeno', 'mediano', 'peligroso']
+          && d.note is string && d.note.size() <= 280
+          && d.status == 'pendiente'
+          && d.confirmations == 0
+          && d.reporterUid == request.auth.uid
+          && (d.address == null || (d.address is string && d.address.size() <= 200))
+          && d.createdAt == request.time
+          && d.updatedAt == request.time;
+      }
+
+      function isAdminStatusChange() {
+        return isAdmin()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
+          && request.resource.data.status in ['pendiente', 'verificado', 'reparado']
+          && request.resource.data.updatedAt == request.time;
+      }
+
+      // "Sigue ahí": +1 confirmación, una sola vez por usuario.
+      function isConfirmation() {
+        return signedIn()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['confirmations', 'lastConfirmedAt'])
+          && request.resource.data.confirmations == resource.data.confirmations + 1
+          && request.resource.data.lastConfirmedAt == request.time
+          && !exists(confirmationPath(request.auth.uid))
+          && existsAfter(confirmationPath(request.auth.uid));
+      }
+
+      allow read: if true;
+      allow create: if signedIn() && validNewReport()
+        && getAfter(rateDoc(request.auth.uid)).data.lastReportAt == request.time;
+      allow update: if isAdminStatusChange() || isConfirmation();
+      allow delete: if isAdmin();
+
+      match /confirmations/{uid} {
+        allow read: if signedIn() && request.auth.uid == uid;
+        allow create: if signedIn() && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly(['createdAt'])
+          && request.resource.data.createdAt == request.time
+          && getAfter(reportPath()).data.confirmations == get(reportPath()).data.confirmations + 1;
+      }
+    }
+  }
+}

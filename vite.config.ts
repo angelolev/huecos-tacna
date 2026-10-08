@@ -1,0 +1,36 @@
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import { VitePWA } from 'vite-plugin-pwa'
+import basicSsl from '@vitejs/plugin-basic-ssl'
+
+// `pnpm dev:phone` → https en la red local: el GPS y la cámara del celular exigen https.
+export default defineConfig(({ mode }) => ({
+  plugins: [
+    react(),
+    mode === 'phone' && basicSsl(),
+    VitePWA({
+      registerType: 'autoUpdate',
+      includeAssets: ['favicon.svg', 'favicon.ico', 'apple-touch-icon.png'],
+      manifest: {
+        name: 'Huecos Tacna',
+        short_name: 'Huecos',
+        description: 'Reporta los huecos en las pistas de Tacna en segundos.',
+        lang: 'es-PE',
+        theme_color: '#FFF8F0',
+        background_color: '#FFF8F0',
+        display: 'standalone',
+        orientation: 'portrait',
+        start_url: '/',
+        icons: [
+          { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
+          { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' },
+          { src: 'maskable-icon-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        ],
+      },
+      workbox: {
+        navigateFallbackDenylist: [/^\/__/],
+        globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+      },
+    }),
+  ],
+}))

@@ -1,0 +1,14 @@
+# Dependencias y builds
+node_modules
+dist
+dev-dist
+*.log
+
+# Variables de entorno (claves reales). Solo se sube la plantilla.
+.env
+.env.*
+!.env.example
+
+# Herramientas
+.firebase
+.vercel
