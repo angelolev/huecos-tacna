@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
-import { Building2, Camera, Info, ListChecks, LoaderCircle, Navigation, Trophy, UserRound } from 'lucide-react'
+import { Building2, Camera, Check, ChevronDown, Info, ListChecks, LoaderCircle, MapPin, Navigation, Trophy, UserRound } from 'lucide-react'
 import { Circle, useMap } from '@vis.gl/react-google-maps'
 import { useAuth } from '../context/AuthContext'
 import { useReports } from '../hooks/useReports'
@@ -14,6 +14,7 @@ import { Logo } from '../components/Logo'
 import { ReportsMap } from '../components/ReportsMap'
 import { ReportSheet } from '../components/ReportSheet'
 import { AccountSheet } from '../components/AccountSheet'
+import { BottomSheet } from '../components/BottomSheet'
 import { NEAR_RADIUS_M, boundsAround, boundsContain, metersBetween } from '../lib/geo'
 import { listCityNames, useCities } from '../context/CitiesContext'
 import { haptic } from '../lib/fx'
@@ -55,41 +56,77 @@ export default function HomePage() {
   const me = useMemo(() => (geo.fix ? { lat: geo.fix.lat, lng: geo.fix.lng } : null), [geo.fix])
   const geoFailed = !!geo.error && !me
 
-  // "Toda la ciudad" = la ciudad donde está la persona; si está fuera de las ciudades activas, la ciudad por defecto.
-  const { enabledCities, enabledCityFor, defaultCity } = useCities()
+  // Ciudad de contexto: todo el inicio (marcadores, contadores, "Toda la ciudad") muestra SOLO sus reportes.
+  // - La ciudad donde está la persona; o la que eligió a mano en el selector.
+  // - Fuera de toda ciudad activa: ninguna (no se muestran reportes de otras ciudades).
+  // - Sin ubicación (o mientras se ubica): la ciudad por defecto.
+  const { enabledCities, enabledCityFor, defaultCity, cities } = useCities()
+  const [pickedCityId, setPickedCityId] = useState<string | null>(null)
+  const [cityPickerOpen, setCityPickerOpen] = useState(false)
   const myCity = me ? enabledCityFor(me) : null
-  const viewCity = myCity ?? defaultCity
-  const outsideCities = !!me && !myCity
+  const pickedCity = cities.find((c) => c.id === pickedCityId) ?? null
+  const contextCity: City | null = pickedCity ?? (me ? myCity : defaultCity)
+  const viewCity = contextCity ?? defaultCity
+  const outsideCities = !!me && !myCity && !pickedCity
 
   // Sin ubicación no hay "cerca de mí": mostramos toda la ciudad.
   useEffect(() => {
     if (view === 'near' && geoFailed) setView('city')
   }, [view, geoFailed])
+  const selected = reports.find((r) => r.id === selectedId) ?? null
+
+  // Al abrir un reporte (p. ej. un enlace compartido), el mapa queda en la ciudad de ese reporte,
+  // sin importar si el GPS respondió antes o después.
+  useEffect(() => {
+    if (selected?.cityId && !pickedCityId) setPickedCityId(selected.cityId)
+  }, [selected?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const cityReports = useMemo(
+    () => (contextCity ? reports.filter((r) => inCity(r, contextCity)) : []),
+    [reports, contextCity],
+  )
   // Los reportes rechazados (falsos) nunca se muestran en el mapa.
   const isVisible = (s: ReportStatus) => (s === 'reparado' ? show.reparados : s !== 'rechazado' && show.activos)
   const visible = useMemo(
-    () => reports.filter((r) => isVisible(r.status) || (r.id === selectedId && r.status !== 'rechazado')),
-    [reports, show, selectedId], // eslint-disable-line react-hooks/exhaustive-deps
+    () => {
+      const list = cityReports.filter((r) => isVisible(r.status))
+      // El reporte abierto (p. ej. desde un enlace) siempre se ve.
+      if (selected && selected.status !== 'rechazado' && !list.includes(selected)) list.push(selected)
+      return list
+    },
+    [cityReports, show, selected], // eslint-disable-line react-hooks/exhaustive-deps
   )
-  const selected = reports.find((r) => r.id === selectedId) ?? null
   const isActive = (r: Report) => r.status === 'pendiente' || r.status === 'verificado'
-  const active = reports.filter(isActive).length
-  const fixed = reports.filter((r) => r.status === 'reparado').length
+  const active = cityReports.filter(isActive).length
+  const fixed = cityReports.filter((r) => r.status === 'reparado').length
   // Para el aviso "¡Ganaste puntos!" bastan los reportes (verificado, reparado, confirmaciones, rechazado).
   const events = useMemo(() => pointEvents(reports, []), [reports])
-  const cityActive = useMemo(
-    () => reports.filter((r) => isActive(r) && inCity(r, viewCity)).length,
-    [reports, viewCity],
-  )
+  const cityActive = active
   const nearCount = useMemo(
-    () => (me ? reports.filter((r) => isActive(r) && metersBetween(me, r) <= NEAR_RADIUS_M).length : 0),
-    [reports, me],
+    () => (me ? cityReports.filter((r) => isActive(r) && metersBetween(me, r) <= NEAR_RADIUS_M).length : 0),
+    [cityReports, me],
   )
 
   const chooseView = (v: Exclude<View, null>) => {
     haptic(8)
-    if (v === 'near' && !me) geo.restart()
+    // Fuera de toda ciudad activa, "Toda la ciudad" no tiene a dónde ir: ofrecemos elegir una.
+    if (v === 'city' && !contextCity) {
+      setCityPickerOpen(true)
+      return
+    }
+    if (v === 'near') {
+      if (!me) geo.restart()
+      // Volver a "cerca de mí" vuelve también a la ciudad donde está la persona.
+      setPickedCityId(null)
+    }
     setView(v)
+  }
+
+  const pickCity = (id: string | null) => {
+    haptic(8)
+    setPickedCityId(id)
+    setCityPickerOpen(false)
+    setView(id ? 'city' : 'near')
   }
 
   const select = (id: string | null) => {
@@ -161,8 +198,9 @@ export default function HomePage() {
           initial={{ y: -20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ ...spring, delay: 0.08 }}
-          className="pointer-events-auto mx-auto mt-3 flex max-w-lg gap-2 px-4"
+          className="no-scrollbar pointer-events-auto mx-auto mt-3 flex max-w-lg gap-2 overflow-x-auto px-4 pb-1"
         >
+          <CityPill city={contextCity} outside={outsideCities} onClick={() => setCityPickerOpen(true)} />
           {loading ? (
             <span className="inline-flex items-center gap-2 rounded-full bg-white/95 px-4 py-2 text-sm text-ink-muted shadow-soft">
               <LoaderCircle className="h-4 w-4 animate-spin" /> Cargando reportes…
@@ -241,9 +279,97 @@ export default function HomePage() {
       </footer>
 
       <ReportSheet report={selected?.status === 'rechazado' ? null : selected} onClose={() => select(null)} />
+      <CityPicker
+        open={cityPickerOpen}
+        onClose={() => setCityPickerOpen(false)}
+        cities={enabledCities}
+        current={contextCity?.id ?? null}
+        myCityId={myCity?.id ?? null}
+        hasLocation={!!me}
+        reports={reports}
+        onPick={pickCity}
+      />
       <PointsToast uid={user?.uid} events={events} ready={!loading} />
       <AccountSheet open={accountOpen} onClose={() => setAccountOpen(false)} />
     </div>
+  )
+}
+
+function CityPill({ city, outside, onClick }: { city: City | null; outside: boolean; onClick: () => void }) {
+  return (
+    <motion.button
+      whileTap={{ scale: 0.92 }}
+      onClick={onClick}
+      className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-white/95 py-2 pl-3 pr-3.5 text-sm font-semibold text-ink shadow-soft"
+      aria-label="Elegir ciudad"
+    >
+      <MapPin className={`h-4 w-4 ${outside ? 'text-ink-muted' : 'text-coral-deep'}`} />
+      {city ? city.name : outside ? 'Fuera de zona' : 'Ciudad'}
+      <ChevronDown className="h-3.5 w-3.5 text-ink-muted" />
+    </motion.button>
+  )
+}
+
+function CityPicker({
+  open,
+  onClose,
+  cities,
+  current,
+  myCityId,
+  hasLocation,
+  reports,
+  onPick,
+}: {
+  open: boolean
+  onClose: () => void
+  cities: City[]
+  current: string | null
+  myCityId: string | null
+  hasLocation: boolean
+  reports: Report[]
+  onPick: (id: string | null) => void
+}) {
+  const activeIn = (c: City) => reports.filter((r) => (r.status === 'pendiente' || r.status === 'verificado') && inCity(r, c)).length
+  return (
+    <BottomSheet open={open} onClose={onClose} label="Elegir ciudad">
+      <div className="space-y-3 px-5 pb-6 pt-1">
+        <div>
+          <p className="font-display text-2xl font-semibold">¿Qué ciudad quieres ver?</p>
+          <p className="text-sm text-ink-muted">El mapa solo muestra los huecos de la ciudad elegida.</p>
+        </div>
+        {hasLocation && (
+          <button onClick={() => onPick(null)} className="card flex w-full items-center gap-3 px-4 py-3.5 text-left transition active:scale-[.98]">
+            <span className="grid h-10 w-10 place-items-center rounded-2xl bg-sky-soft text-sky-deep">
+              <Navigation className="h-5 w-5" />
+            </span>
+            <span className="flex-1">
+              <span className="block font-semibold">Donde estoy</span>
+              <span className="text-xs text-ink-muted">
+                {myCityId ? cities.find((c) => c.id === myCityId)?.name : 'Huecazo aún no llega a tu zona'}
+              </span>
+            </span>
+          </button>
+        )}
+        {cities.map((c) => (
+          <button
+            key={c.id}
+            onClick={() => onPick(c.id)}
+            className={`card flex w-full items-center gap-3 px-4 py-3.5 text-left transition active:scale-[.98] ${current === c.id ? 'ring-2 ring-coral' : ''}`}
+          >
+            <span className="grid h-10 w-10 place-items-center rounded-2xl bg-coral-soft text-coral-deep">
+              <Building2 className="h-5 w-5" />
+            </span>
+            <span className="flex-1">
+              <span className="block font-semibold">{c.name}</span>
+              <span className="text-xs text-ink-muted">
+                {activeIn(c)} {activeIn(c) === 1 ? 'hueco por reparar' : 'huecos por reparar'}
+              </span>
+            </span>
+            {current === c.id && <Check className="h-5 w-5 text-coral-deep" />}
+          </button>
+        ))}
+      </div>
+    </BottomSheet>
   )
 }
 
@@ -268,7 +394,7 @@ function FilterChip({
       whileTap={{ scale: 0.92 }}
       onClick={onClick}
       aria-pressed={on}
-      className="inline-flex items-center gap-2 rounded-full py-2 pl-2 pr-4 text-sm shadow-soft transition-colors"
+      className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full py-2 pl-2 pr-4 text-sm shadow-soft transition-colors"
       style={{ background: on ? soft : 'rgba(255,255,255,.95)' }}
     >
       <span
