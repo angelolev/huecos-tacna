@@ -32,7 +32,7 @@ export function exportReportsCsv(reports: Report[]) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `huecos-tacna-${new Date().toISOString().slice(0, 10)}.csv`
+  a.download = `huecazo-${new Date().toISOString().slice(0, 10)}.csv`
   a.click()
   URL.revokeObjectURL(url)
 }

@@ -20,7 +20,7 @@ export function Logo({ to = '/' }: { to?: string }) {
     <Link to={to} className="flex select-none items-center gap-2">
       <PinMark size={26} />
       <span className="font-display text-[21px] font-semibold leading-none text-ink">
-        Huecos <span className="text-coral-deep">Tacna</span>
+        Huec<span className="text-coral-deep">azo</span>
       </span>
     </Link>
   )

@@ -12,9 +12,9 @@ export default defineConfig(({ mode }) => ({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'favicon.ico', 'apple-touch-icon.png'],
       manifest: {
-        name: 'Huecos Tacna',
-        short_name: 'Huecos',
-        description: 'Reporta los huecos en las pistas de Tacna en segundos.',
+        name: 'Huecazo',
+        short_name: 'Huecazo',
+        description: 'Reporta los huecos de las pistas de tu ciudad en 30 segundos, con foto y ubicación.',
         lang: 'es-PE',
         theme_color: '#FFF8F0',
         background_color: '#FFF8F0',

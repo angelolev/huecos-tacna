@@ -1,6 +1,8 @@
-# Huecos Tacna 🕳️🚧
+# Huecazo 🕳️🚧
 
-PWA (mobile-first) para que los vecinos de Tacna reporten huecos en las pistas con **foto + ubicación**, y un **panel de administración** con el mapa de todos los reportes.
+**https://huecazo.com** · PWA mobile-first para que los vecinos reporten los huecos de las pistas con **foto + ubicación**, y un **panel de administración** con el mapa de todos los reportes.
+
+Empezó en Tacna tras las lluvias. Por ahora solo acepta reportes de la región Tacna; el límite está en `firestore.rules` y en `src/pages/report/LocationStep.tsx`.
 
 ## Funcionalidades
 
@@ -69,7 +71,7 @@ Abre en el celular la URL `https://192.168.x.x:5173` que muestra la terminal y a
 > En computadoras de escritorio la ubicación viene del WiFi o la IP y puede tener cientos de metros de error. Para probar la precisión real, usa el celular con el GPS activado.
 
 ### 5. Desplegar
-Producción: **https://huecos-tacna.vercel.app**
+Producción: **https://huecazo.com** (también responde en https://huecos-tacna.vercel.app; `www.huecazo.com` redirige al dominio principal).
 
 El proyecto de Vercel está conectado a este repositorio:
 - Cada `git push` a `main` despliega automáticamente a producción.
