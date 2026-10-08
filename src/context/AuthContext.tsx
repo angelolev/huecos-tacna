@@ -13,6 +13,7 @@ import type { User } from 'firebase/auth'
 import { FirebaseError } from 'firebase/app'
 import { doc, getDoc } from 'firebase/firestore'
 import { auth, db } from '../lib/firebase'
+import { completeTransfer, prepareTransfer } from '../lib/transfer'
 
 interface AuthValue {
   user: User | null
@@ -79,11 +80,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setVersion((v) => v + 1)
       return 'linked' as const
     } catch (err) {
-      // La cuenta de Google ya existe (p.ej. otro celular): iniciamos sesión con ella.
+      // La cuenta de Google ya existe (p. ej. el admin u otro celular): iniciamos sesión con ella
+      // y le pasamos los reportes y el alias de esta sesión anónima, para no perder los puntos.
       if (err instanceof FirebaseError && err.code === 'auth/credential-already-in-use') {
         const cred = GoogleAuthProvider.credentialFromError(err)
         if (cred) {
-          await signInWithCredential(auth, cred)
+          const transfer = current.isAnonymous ? await prepareTransfer(current.uid).catch(() => null) : null
+          const { user: google } = await signInWithCredential(auth, cred)
+          if (transfer) {
+            await completeTransfer(transfer, google.uid).catch((e) => console.error('No se pudieron traspasar los reportes', e))
+          }
           return 'switched' as const
         }
       }
@@ -91,9 +97,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  // Login del admin: si hay una sesión anónima, se VINCULA (o se traspasa) en vez de reemplazarla,
+  // así los reportes hechos en este navegador no quedan huérfanos.
   const signInGoogle = useCallback(async () => {
+    if (auth.currentUser?.isAnonymous) {
+      await linkGoogle()
+      return
+    }
     await signInWithPopup(auth, provider)
-  }, [])
+  }, [linkGoogle])
 
   const signOutUser = useCallback(async () => {
     await signOut(auth)

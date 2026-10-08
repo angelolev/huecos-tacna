@@ -21,7 +21,7 @@ export function AccountSheet({ open, onClose }: { open: boolean; onClose: () => 
       setMsg(
         result === 'linked'
           ? '¡Listo! Tus reportes ahora están guardados en tu cuenta de Google.'
-          : 'Esa cuenta ya existía: iniciaste sesión con ella.',
+          : 'Esa cuenta ya existía: iniciaste sesión con ella y le pasamos tus reportes y puntos.',
       )
     } catch (err) {
       console.error(err)

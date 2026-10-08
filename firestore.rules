@@ -71,6 +71,36 @@ service cloud.firestore {
       allow read: if true;
     }
 
+    // Traspaso de reportes de una sesión anónima a una cuenta de Google ya existente.
+    // 1) El anónimo crea transfers/{uidAnonimo} con un código secreto (solo él puede leerlo).
+    // 2) Ya con Google, la cuenta destino se asigna como `to` probando que conoce el código.
+    // 3) La cuenta destino reclama los reportes del anónimo (ver isTransferClaim en /reports).
+    match /transfers/{fromUid} {
+      function freshRequest() {
+        return request.resource.data.keys().hasOnly(['code', 'createdAt'])
+          && request.resource.data.code is string && request.resource.data.code.size() >= 32
+          && request.resource.data.createdAt == request.time;
+      }
+
+      allow read: if signedIn() && request.auth.uid == fromUid;
+      // El anónimo crea (o renueva) su autorización.
+      allow create: if signedIn() && request.auth.uid == fromUid
+        && request.auth.token.firebase.sign_in_provider == 'anonymous' && freshRequest();
+      allow update: if signedIn() && (
+        (request.auth.uid == fromUid
+          && request.auth.token.firebase.sign_in_provider == 'anonymous' && freshRequest())
+        // La cuenta destino (no anónima) acepta el traspaso dentro de 10 minutos.
+        || (request.auth.uid != fromUid
+          && request.auth.token.firebase.sign_in_provider != 'anonymous'
+          && !('to' in resource.data)
+          && resource.data.createdAt > request.time - duration.value(10, 'm')
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['to', 'proof'])
+          && request.resource.data.to == request.auth.uid
+          && request.resource.data.proof == resource.data.code)
+      );
+      allow delete: if false;
+    }
+
     match /admins/{email} {
       allow read: if signedIn() && request.auth.token.email == email;
       allow write: if false;
@@ -171,7 +201,17 @@ service cloud.firestore {
           && exists(cityPath(request.resource.data.cityId));
       }
 
-      allow update: if isAdminStatusChange() || isConfirmation() || isAdminCityBackfill();
+      // La cuenta destino de un traspaso aceptado reclama los reportes del anónimo (solo cambia el autor).
+      function isTransferClaim() {
+        let transferPath = /databases/$(database)/documents/transfers/$(resource.data.reporterUid);
+        return signedIn()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reporterUid'])
+          && request.resource.data.reporterUid == request.auth.uid
+          && exists(transferPath)
+          && get(transferPath).data.get('to', '') == request.auth.uid;
+      }
+
+      allow update: if isAdminStatusChange() || isConfirmation() || isAdminCityBackfill() || isTransferClaim();
       allow delete: if isAdmin();
 
       match /confirmations/{uid} {

@@ -69,7 +69,7 @@ export default function MyReportsPage() {
                 setLinkMsg(null)
                 try {
                   const r = await linkGoogle()
-                  if (r === 'switched') setLinkMsg('Esa cuenta ya existía: ahora ves los reportes guardados en ella.')
+                  if (r === 'switched') setLinkMsg('Esa cuenta ya existía: iniciaste sesión con ella y le pasamos tus reportes y puntos.')
                 } catch (err) {
                   setLinkMsg(authErrorMessage(err))
                 } finally {
