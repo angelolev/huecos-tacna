@@ -1,7 +1,12 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Download, LoaderCircle, LogOut, Search, Trash2, Users, X } from 'lucide-react'
+import { Building2, Download, LoaderCircle, LogOut, Search, Trash2, Users, X } from 'lucide-react'
+import { useMap } from '@vis.gl/react-google-maps'
 import { useAuth } from '../../context/AuthContext'
+import { useCities } from '../../context/CitiesContext'
+import { backfillReportCities, cityExists, saveCity } from '../../lib/cities'
+import { boundsContain } from '../../lib/geo'
+import { CitiesManager } from './CitiesManager'
 import { useReports } from '../../hooks/useReports'
 import { ReportsMap } from '../../components/ReportsMap'
 import { ReportDetail } from '../../components/ReportDetail'
@@ -10,8 +15,8 @@ import { PinMark } from '../../components/Logo'
 import { exportReportsCsv } from '../../lib/csv'
 import { timeAgo } from '../../lib/format'
 import { deleteReport, updateReportStatus } from '../../lib/reports'
-import { SEVERITIES, SEVERITY_META, STATUSES, STATUS_META } from '../../lib/types'
-import type { Report, ReportStatus, Severity } from '../../lib/types'
+import { SEVERITIES, SEVERITY_META, STATUSES, STATUS_META, TACNA_CITY } from '../../lib/types'
+import type { City, Report, ReportStatus, Severity } from '../../lib/types'
 
 type Period = '7' | '30' | 'all'
 type Sort = 'recent' | 'confirmed' | 'severity'
@@ -21,6 +26,37 @@ const SEVERITY_RANK: Record<Severity, number> = { peligroso: 3, mediano: 2, pequ
 export default function AdminPage() {
   const { user, signOutUser } = useAuth()
   const { reports, loading, error } = useReports()
+  const { cities, seeded, loading: citiesLoading, cityName } = useCities()
+
+  const [cityFilter, setCityFilter] = useState<string>('all')
+  const [citiesOpen, setCitiesOpen] = useState(false)
+  const cityOf = (r: Report) => r.cityId ?? cities.find((c) => boundsContain(c.bounds, r))?.id ?? null
+  const selectedCity = cities.find((c) => c.id === cityFilter) ?? null
+
+  // Primera vez: crea la ciudad inicial (Tacna) en Firestore.
+  const seeding = useRef(false)
+  useEffect(() => {
+    if (citiesLoading || seeded || seeding.current) return
+    seeding.current = true
+    cityExists(TACNA_CITY.id)
+      .then((exists) => (exists ? undefined : saveCity(TACNA_CITY, true)))
+      .catch((e) => console.error('No se pudo crear la ciudad inicial', e))
+  }, [citiesLoading, seeded])
+
+  // Reportes creados antes de existir las ciudades: se les asigna su ciudad según su ubicación.
+  const backfilled = useRef(false)
+  useEffect(() => {
+    if (!seeded || loading || backfilled.current || !reports.some((r) => !r.cityId)) return
+    backfilled.current = true
+    backfillReportCities(reports, cities)
+      .then((n) => n && console.info(`Ciudad asignada a ${n} reportes antiguos`))
+      .catch((e) => console.error('No se pudo asignar la ciudad a reportes antiguos', e))
+  }, [seeded, loading, reports, cities])
+
+  const cityReports = useMemo(
+    () => (cityFilter === 'all' ? reports : reports.filter((r) => cityOf(r) === cityFilter)),
+    [reports, cityFilter, cities], // eslint-disable-line react-hooks/exhaustive-deps
+  )
 
   const [statusFilter, setStatusFilter] = useState<Set<ReportStatus>>(new Set(['pendiente', 'verificado']))
   const [sevFilter, setSevFilter] = useState<Set<Severity>>(new Set(SEVERITIES))
@@ -31,14 +67,14 @@ export default function AdminPage() {
 
   const counts = useMemo(() => {
     const c: Record<ReportStatus, number> = { pendiente: 0, verificado: 0, reparado: 0 }
-    reports.forEach((r) => c[r.status]++)
+    cityReports.forEach((r) => c[r.status]++)
     return c
-  }, [reports])
+  }, [cityReports])
 
   const filtered = useMemo(() => {
     const since = period === 'all' ? 0 : Date.now() - Number(period) * 86400000
     const q = search.trim().toLowerCase()
-    const list = reports.filter(
+    const list = cityReports.filter(
       (r) =>
         statusFilter.has(r.status) &&
         sevFilter.has(r.severity) &&
@@ -48,7 +84,7 @@ export default function AdminPage() {
     if (sort === 'confirmed') list.sort((a, b) => b.confirmations - a.confirmations)
     if (sort === 'severity') list.sort((a, b) => SEVERITY_RANK[b.severity] - SEVERITY_RANK[a.severity] || b.confirmations - a.confirmations)
     return list
-  }, [reports, statusFilter, sevFilter, period, sort, search])
+  }, [cityReports, statusFilter, sevFilter, period, sort, search])
 
   const selected = reports.find((r) => r.id === selectedId) ?? null
 
@@ -64,9 +100,17 @@ export default function AdminPage() {
             <p className="font-display text-2xl font-semibold leading-none">Panel de control</p>
             <p className="truncate text-xs text-ink-muted">{user?.email}</p>
           </div>
+          <button onClick={() => setCitiesOpen(true)} className="icon-btn" title="Ciudades" aria-label="Administrar ciudades">
+            <Building2 className="h-4 w-4" />
+          </button>
           <button onClick={signOutUser} className="icon-btn" title="Cerrar sesión" aria-label="Cerrar sesión">
             <LogOut className="h-4 w-4" />
           </button>
+        </div>
+
+        {/* Ciudad */}
+        <div className="px-5 pt-4">
+          <CitySelect cities={cities} value={cityFilter} onChange={setCityFilter} reports={reports} cityOf={cityOf} />
         </div>
 
         {/* Contadores = filtros de estado */}
@@ -129,7 +173,7 @@ export default function AdminPage() {
               <option value="severity">Más graves</option>
             </select>
             <button
-              onClick={() => exportReportsCsv(filtered)}
+              onClick={() => exportReportsCsv(filtered, (r) => cityName(cityOf(r)), selectedCity?.id)}
               disabled={!filtered.length}
               className="inline-flex items-center gap-2 rounded-full bg-coral px-4 py-2 text-sm font-bold text-ink shadow-[0_3px_0_#E86F5A] transition active:translate-y-0.5 active:shadow-none disabled:opacity-40"
             >
@@ -168,6 +212,7 @@ export default function AdminPage() {
                         <SeverityBadge severity={r.severity} />
                       </div>
                       <p className="flex items-center gap-2 text-[11px] text-ink-muted">
+                        {cityFilter === 'all' && cities.length > 1 && <span className="font-semibold text-ink-soft">{cityName(cityOf(r))} ·</span>}
                         {timeAgo(r.createdAt)}
                         {r.confirmations > 0 && (
                           <span className="flex items-center gap-1 font-semibold text-lavender-deep">
@@ -186,12 +231,58 @@ export default function AdminPage() {
 
       {/* Mapa + detalle */}
       <section className="relative min-h-0 flex-1">
-        <ReportsMap className="absolute inset-0" reports={filtered} selectedId={selectedId} onSelect={(r) => setSelectedId(r.id)} />
+        <ReportsMap className="absolute inset-0" reports={filtered} selectedId={selectedId} onSelect={(r) => setSelectedId(r.id)}>
+          <FitCity city={selectedCity} />
+        </ReportsMap>
         <Legend />
         {selected && <AdminDetail key={selected.id} report={selected} onClose={() => setSelectedId(null)} />}
+        <CitiesManager open={citiesOpen} onClose={() => setCitiesOpen(false)} reports={reports} />
       </section>
     </div>
   )
+}
+
+function CitySelect({
+  cities,
+  value,
+  onChange,
+  reports,
+  cityOf,
+}: {
+  cities: City[]
+  value: string
+  onChange: (v: string) => void
+  reports: Report[]
+  cityOf: (r: Report) => string | null
+}) {
+  const count = (id: string) => reports.filter((r) => cityOf(r) === id).length
+  return (
+    <label className="relative block">
+      <Building2 className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-lavender-deep" />
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="field appearance-none py-2.5 pl-10 font-semibold"
+        aria-label="Filtrar por ciudad"
+      >
+        <option value="all">Todas las ciudades ({reports.length})</option>
+        {cities.map((c) => (
+          <option key={c.id} value={c.id}>
+            {c.name} ({count(c.id)}){c.enabled ? '' : ' · pausada'}
+          </option>
+        ))}
+      </select>
+    </label>
+  )
+}
+
+/** Al elegir una ciudad, el mapa encuadra su zona urbana. */
+function FitCity({ city }: { city: City | null }) {
+  const map = useMap()
+  useEffect(() => {
+    if (map && city) map.fitBounds(city.viewBounds, 40)
+  }, [map, city?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  return null
 }
 
 function toggle<T>(set: Set<T>, value: T) {

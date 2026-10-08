@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { LoaderCircle } from 'lucide-react'
 import { AuthProvider, useAuth } from './context/AuthContext'
+import { CitiesProvider } from './context/CitiesContext'
 import { MAPS_API_KEY, MapsProvider } from './components/MapsProvider'
 import { SetupScreen } from './components/SetupScreen'
 import { isFirebaseConfigured } from './lib/firebase'
@@ -41,11 +42,13 @@ export default function App() {
   }
   return (
     <AuthProvider>
-      <MapsProvider>
-        <BrowserRouter>
-          <AppRoutes />
-        </BrowserRouter>
-      </MapsProvider>
+      <CitiesProvider>
+        <MapsProvider>
+          <BrowserRouter>
+            <AppRoutes />
+          </BrowserRouter>
+        </MapsProvider>
+      </CitiesProvider>
     </AuthProvider>
   )
 }

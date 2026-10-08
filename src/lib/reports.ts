@@ -33,6 +33,7 @@ function fromDoc(snap: DocumentSnapshot): Report {
   const d = snap.data() ?? {}
   return {
     id: snap.id,
+    cityId: d.cityId ?? null,
     lat: d.lat,
     lng: d.lng,
     geohash: d.geohash,
@@ -115,6 +116,7 @@ export async function secondsUntilCanReport(uid: string) {
 
 interface NewReport {
   uid: string
+  cityId: string
   location: LatLng
   photos: Blob[]
   severity: Severity
@@ -123,7 +125,7 @@ interface NewReport {
   onProgress?: (fraction: number) => void
 }
 
-export async function createReport({ uid, location, photos, severity, note, address, onProgress }: NewReport) {
+export async function createReport({ uid, cityId, location, photos, severity, note, address, onProgress }: NewReport) {
   const reportRef = doc(reportsCol)
   const total = photos.reduce((sum, p) => sum + p.size, 0)
   const loaded = photos.map(() => 0)
@@ -147,6 +149,7 @@ export async function createReport({ uid, location, photos, severity, note, addr
 
   const batch = writeBatch(db)
   batch.set(reportRef, {
+    cityId,
     lat: location.lat,
     lng: location.lng,
     geohash: geohashForLocation([location.lat, location.lng]),

@@ -2,7 +2,7 @@
 
 **https://huecazo.com** · PWA mobile-first para que los vecinos reporten los huecos de las pistas con **foto + ubicación**, y un **panel de administración** con el mapa de todos los reportes.
 
-Empezó en Tacna tras las lluvias. Por ahora solo acepta reportes de la región Tacna; el límite está en `firestore.rules` y en `src/pages/report/LocationStep.tsx`.
+Empezó en Tacna tras las lluvias. Está lista para funcionar en varias ciudades del Perú: cada ciudad se agrega y se activa desde el panel admin, sin tocar código (ver [Ciudades](#ciudades)).
 
 ## Funcionalidades
 
@@ -82,10 +82,34 @@ Las variables `VITE_*` están configuradas en Vercel (Production y Preview). Si 
 pnpm dlx vercel@latest deploy --prod
 ```
 
+## Ciudades
+
+Las ciudades viven en la colección `cities` de Firestore. Agregar una ciudad no requiere código ni redesplegar.
+
+1. Entra a `/admin` y pulsa el ícono de **edificio** (Ciudades).
+2. **Agregar ciudad** → escribe el nombre (p. ej. "Moquegua") → **Buscar**. Google ubica la ciudad y propone dos zonas que puedes ajustar arrastrando sus bordes:
+   - **Zona de reportes** (coral): dónde se aceptan reportes. Incluye los alrededores de la ciudad.
+   - **Zona urbana** (lavanda): lo que se muestra en la vista "Toda la ciudad".
+3. Guarda. La ciudad queda **pausada**. Cuando quieras abrirla, activa su interruptor.
+
+Comportamiento:
+- **Al reportar**, la app asigna la ciudad cuya zona contiene el pin. Las reglas de Firestore verifican que la ciudad exista, esté **activa** y que el punto esté dentro de su zona.
+- **Fuera de las ciudades activas**, la app avisa "Huecazo aún no llega a tu zona" y no deja confirmar el pin.
+- **"Toda la ciudad"** encuadra la ciudad donde está la persona, o la primera ciudad activa si está fuera de todas.
+- **En el admin** se filtra por ciudad, y el CSV incluye la columna Ciudad (`huecazo-<ciudad>-AAAA-MM-DD.csv`).
+- **Pausar una ciudad** deja de aceptar reportes nuevos, pero los existentes se siguen viendo. Las ciudades no se borran.
+- **La primera vez que un admin abre el panel**, se crea automáticamente la ciudad **Tacna** y se asigna `cityId` a los reportes antiguos.
+
 ## Modelo de datos
 
 ```
+cities/{id}                        // id = slug: "tacna", "moquegua"
+  name, department, enabled, order
+  bounds      {north, south, east, west}   // zona donde se aceptan reportes
+  viewBounds  {north, south, east, west}   // zona urbana para "Toda la ciudad"
+  center      {lat, lng}
 reports/{id}
+  cityId                     // ciudad del reporte
   lat, lng, geohash          // geohash para la búsqueda de duplicados cercanos
   photos: [{ url, path }]    // 1–2 fotos en Storage: reports/{uid}/{id}/n.webp
   severity: pequeno | mediano | peligroso

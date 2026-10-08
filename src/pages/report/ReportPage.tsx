@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import { ArrowLeft, ArrowRight, Clock, X } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
+import { useCities } from '../../context/CitiesContext'
 import { haptic } from '../../lib/fx'
 import { useGeoWatch } from '../../hooks/useGeoWatch'
 import { confirmReport, createReport, findNearby, hasConfirmed, secondsUntilCanReport, withTimeout } from '../../lib/reports'
@@ -31,6 +32,7 @@ const slide = {
 export default function ReportPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
+  const { enabledCityFor } = useCities()
 
   const [step, setStep] = useState<Step>(0)
   const [dir, setDir] = useState(1)
@@ -130,6 +132,11 @@ export default function ReportPage() {
   const submit = async () => {
     if (!user || !location) return
     setError(null)
+    const city = enabledCityFor(location)
+    if (!city) {
+      setError('Huecazo aún no funciona en esta zona. Vuelve al paso anterior y revisa la ubicación.')
+      return
+    }
     const remaining = await withTimeout(secondsUntilCanReport(user.uid), 5000).catch(() => 0)
     if (remaining > 0) {
       setWait(remaining)
@@ -140,6 +147,7 @@ export default function ReportPage() {
     try {
       const id = await createReport({
         uid: user.uid,
+        cityId: city.id,
         location,
         photos: photos.map((p) => p.blob),
         severity,

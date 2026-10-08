@@ -7,12 +7,10 @@ import { CircleCheck, LoaderCircle, LocateFixed, MapPin, RotateCw, TriangleAlert
 import { haptic } from '../../lib/fx'
 import { MAP_ID } from '../../components/MapsProvider'
 import { formatCoords } from '../../lib/geo'
-import { TACNA_CENTER } from '../../lib/types'
+import { listCityNames, useCities } from '../../context/CitiesContext'
 import type { LatLng } from '../../lib/types'
 import type { GeoError, GeoWatch } from '../../hooks/useGeoWatch'
 
-// Mismos límites que firestore.rules (región Tacna).
-const inTacna = ({ lat, lng }: LatLng) => lat > -18.6 && lat < -16.9 && lng > -71.1 && lng < -69.4
 
 const ACCURATE_M = 30
 
@@ -52,6 +50,7 @@ export function LocationStep({
   const [userMoved, setUserMoved] = useState(!!startRef.current)
 
   const { fix } = geo
+  const { enabledCities, enabledCityFor, defaultCity } = useCities()
   // Google Maps espera literales {lat, lng} sin campos extra.
   const gps = useMemo(() => (fix ? { lat: fix.lat, lng: fix.lng } : null), [fix])
   useEffect(() => {
@@ -78,8 +77,10 @@ export function LocationStep({
     geo.restart()
   }
 
-  const outside = location ? !inTacna(location) : false
   const waitingFirstFix = !fix && !geo.error && !userMoved
+  // La zona de cada ciudad activa viene de Firestore; las reglas validan lo mismo al guardar.
+  const city = location ? enabledCityFor(location) : null
+  const outside = !!location && !waitingFirstFix && !city
   const needsManualPin = !fix && !!geo.error && !userMoved
   // No dejamos confirmar una lectura muy imprecisa mientras el GPS sigue afinando.
   const refining = !!fix && geo.watching && fix.accuracy > 100 && !userMoved
@@ -91,7 +92,7 @@ export function LocationStep({
         className="absolute inset-0"
         mapId={MAP_ID}
         colorScheme={ColorScheme.LIGHT}
-        defaultCenter={startRef.current ?? gps ?? TACNA_CENTER}
+        defaultCenter={startRef.current ?? gps ?? defaultCity.center}
         defaultZoom={startRef.current ? 18 : fix ? zoomFor(fix.accuracy) : 14}
         gestureHandling="greedy"
         disableDefaultUI
@@ -175,6 +176,7 @@ export function LocationStep({
                   {waitingFirstFix ? 'Buscando dónde estás…' : (address ?? 'Punto seleccionado')}
                 </p>
                 <p className="tabular text-xs text-ink-muted">
+                  {city && !waitingFirstFix && <span className="font-semibold text-coral-deep">{city.name} · </span>}
                   {waitingFirstFix || !location ? '—' : formatCoords(location)}
                   {userMoved && pinDistance > 25 && ` · a ${pinDistance} m de ti`}
                 </p>
@@ -186,7 +188,7 @@ export function LocationStep({
             {outside && (
               <p className="mt-3 flex gap-2 rounded-2xl bg-coral-soft px-3 py-2 text-xs text-coral-deep">
                 <TriangleAlert className="h-4 w-4 shrink-0" />
-                Ese punto está fuera de Tacna. Por ahora solo recibimos reportes de la región.
+                Huecazo aún no funciona en esta zona. Por ahora recibimos reportes en {listCityNames(enabledCities)}.
               </p>
             )}
 

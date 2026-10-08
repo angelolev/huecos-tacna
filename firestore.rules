@@ -18,6 +18,37 @@ service cloud.firestore {
       return /databases/$(database)/documents/rateLimits/$(uid);
     }
 
+    // Ciudades donde funciona Huecazo. Agregar o activar una ciudad = crear/editar su documento
+    // desde el panel admin; estas reglas no necesitan cambios.
+    match /cities/{cityId} {
+      function validBounds(b) {
+        // Rectángulo dentro del Perú (con margen).
+        return b is map && b.keys().hasAll(['north', 'south', 'east', 'west'])
+          && b.north is number && b.south is number && b.east is number && b.west is number
+          && b.north > b.south && b.east > b.west
+          && b.north <= 0.1 && b.south >= -18.6 && b.east <= -68.4 && b.west >= -81.5;
+      }
+
+      function validCity() {
+        let c = request.resource.data;
+        return c.keys().hasOnly(['name', 'department', 'enabled', 'bounds', 'viewBounds', 'center',
+                                  'order', 'createdAt', 'updatedAt'])
+          && c.keys().hasAll(['name', 'enabled', 'bounds', 'viewBounds', 'center', 'order'])
+          && c.name is string && c.name.size() > 0 && c.name.size() <= 60
+          && (!('department' in c) || (c.department is string && c.department.size() <= 40))
+          && c.enabled is bool
+          && c.order is number
+          && validBounds(c.bounds) && validBounds(c.viewBounds)
+          && c.center.lat is number && c.center.lng is number
+          && cityId.matches('^[a-z0-9-]{1,50}$');
+      }
+
+      allow read: if true;
+      allow create, update: if isAdmin() && validCity();
+      // Para dejar de recibir reportes en una ciudad se pausa (enabled = false), no se borra.
+      allow delete: if false;
+    }
+
     match /admins/{email} {
       allow read: if signedIn() && request.auth.token.email == email;
       allow write: if false;
@@ -44,14 +75,38 @@ service cloud.firestore {
         return /databases/$(database)/documents/reports/$(reportId)/confirmations/$(uid);
       }
 
+      function cityPath(id) {
+        return /databases/$(database)/documents/cities/$(id);
+      }
+
+      // El punto debe caer dentro de la zona de una ciudad activa.
+      function inCityZone(city, d) {
+        return city.enabled == true
+          && d.lat >= city.bounds.south && d.lat <= city.bounds.north
+          && d.lng >= city.bounds.west && d.lng <= city.bounds.east;
+      }
+
+      // Zona original de Tacna: solo se usa mientras no exista el documento cities/tacna.
+      function inLegacyTacna(d) {
+        return d.lat > -18.6 && d.lat < -16.9 && d.lng > -71.1 && d.lng < -69.4;
+      }
+
+      // Compatibilidad: las versiones antiguas de la app (PWA en caché) no envían cityId → se tratan como Tacna.
+      function cityOk(d) {
+        let id = ('cityId' in d) ? d.cityId : 'tacna';
+        return id is string
+          && (exists(cityPath(id))
+                ? inCityZone(get(cityPath(id)).data, d)
+                : (id == 'tacna' && inLegacyTacna(d)));
+      }
+
       function validNewReport() {
         let d = request.resource.data;
-        let fields = ['lat', 'lng', 'geohash', 'photos', 'severity', 'note', 'status',
-                      'confirmations', 'reporterUid', 'address', 'createdAt', 'updatedAt'];
-        return d.keys().hasOnly(fields) && d.keys().hasAll(fields)
-          // Región Tacna (margen amplio)
-          && d.lat is number && d.lat > -18.6 && d.lat < -16.9
-          && d.lng is number && d.lng > -71.1 && d.lng < -69.4
+        let required = ['lat', 'lng', 'geohash', 'photos', 'severity', 'note', 'status',
+                        'confirmations', 'reporterUid', 'address', 'createdAt', 'updatedAt'];
+        return d.keys().hasOnly(required.concat(['cityId'])) && d.keys().hasAll(required)
+          && d.lat is number && d.lng is number
+          && cityOk(d)
           && d.geohash is string && d.geohash.size() >= 7 && d.geohash.size() <= 12
           && d.photos is list && d.photos.size() >= 1 && d.photos.size() <= 2
           && d.severity in ['pequeno', 'mediano', 'peligroso']
@@ -84,7 +139,15 @@ service cloud.firestore {
       allow read: if true;
       allow create: if signedIn() && validNewReport()
         && getAfter(rateDoc(request.auth.uid)).data.lastReportAt == request.time;
-      allow update: if isAdminStatusChange() || isConfirmation();
+      // Reportes creados antes de existir las ciudades: el admin les asigna su ciudad una sola vez.
+      function isAdminCityBackfill() {
+        return isAdmin()
+          && !('cityId' in resource.data)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['cityId'])
+          && exists(cityPath(request.resource.data.cityId));
+      }
+
+      allow update: if isAdminStatusChange() || isConfirmation() || isAdminCityBackfill();
       allow delete: if isAdmin();
 
       match /confirmations/{uid} {

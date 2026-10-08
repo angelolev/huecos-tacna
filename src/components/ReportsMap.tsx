@@ -4,7 +4,8 @@ import { AdvancedMarker, ColorScheme, Map, useMap, useMapsLibrary } from '@vis.g
 import type { AdvancedMarkerProps } from '@vis.gl/react-google-maps'
 import { MarkerClusterer } from '@googlemaps/markerclusterer'
 import type { Marker, Renderer } from '@googlemaps/markerclusterer'
-import { STATUS_META, TACNA_CENTER } from '../lib/types'
+import { STATUS_META } from '../lib/types'
+import { useCities } from '../context/CitiesContext'
 import type { LatLng, Report } from '../lib/types'
 import { MAP_ID } from './MapsProvider'
 
@@ -19,14 +20,15 @@ interface Props {
   className?: string
 }
 
-/** Mapa de Tacna con los reportes agrupados en burbujas. */
+/** Mapa con los reportes agrupados en burbujas. */
 export function ReportsMap({ reports, userLocation, selectedId, onSelect, onUserMove, children, className }: Props) {
+  const { defaultCity } = useCities()
   return (
     <Map
       className={className}
       mapId={MAP_ID}
       colorScheme={ColorScheme.LIGHT}
-      defaultCenter={TACNA_CENTER}
+      defaultCenter={defaultCity.center}
       defaultZoom={13}
       gestureHandling="greedy"
       disableDefaultUI

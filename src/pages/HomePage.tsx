@@ -11,9 +11,10 @@ import { Logo } from '../components/Logo'
 import { ReportsMap } from '../components/ReportsMap'
 import { ReportSheet } from '../components/ReportSheet'
 import { AccountSheet } from '../components/AccountSheet'
-import { NEAR_RADIUS_M, TACNA_CITY_BOUNDS, boundsAround, metersBetween } from '../lib/geo'
+import { NEAR_RADIUS_M, boundsAround, boundsContain, metersBetween } from '../lib/geo'
+import { listCityNames, useCities } from '../context/CitiesContext'
 import { haptic } from '../lib/fx'
-import type { LatLng, Report, ReportStatus } from '../lib/types'
+import type { City, LatLng, Report, ReportStatus } from '../lib/types'
 
 const spring = { type: 'spring', stiffness: 260, damping: 22 } as const
 
@@ -50,6 +51,12 @@ export default function HomePage() {
   const me = useMemo(() => (geo.fix ? { lat: geo.fix.lat, lng: geo.fix.lng } : null), [geo.fix])
   const geoFailed = !!geo.error && !me
 
+  // "Toda la ciudad" = la ciudad donde está la persona; si está fuera de las ciudades activas, la ciudad por defecto.
+  const { enabledCities, enabledCityFor, defaultCity } = useCities()
+  const myCity = me ? enabledCityFor(me) : null
+  const viewCity = myCity ?? defaultCity
+  const outsideCities = !!me && !myCity
+
   // Sin ubicación no hay "cerca de mí": mostramos toda la ciudad.
   useEffect(() => {
     if (view === 'near' && geoFailed) setView('city')
@@ -62,6 +69,10 @@ export default function HomePage() {
   const selected = reports.find((r) => r.id === selectedId) ?? null
   const active = reports.filter((r) => r.status !== 'reparado').length
   const fixed = reports.length - active
+  const cityActive = useMemo(
+    () => reports.filter((r) => r.status !== 'reparado' && inCity(r, viewCity)).length,
+    [reports, viewCity],
+  )
   const nearCount = useMemo(
     () => (me ? reports.filter((r) => r.status !== 'reparado' && metersBetween(me, r) <= NEAR_RADIUS_M).length : 0),
     [reports, me],
@@ -98,7 +109,7 @@ export default function HomePage() {
         }}
         onUserMove={() => setView(null)}
       >
-        <ViewController view={view} me={me} reports={visible} />
+        <ViewController view={view} me={me} city={viewCity} reports={visible} />
         {me && view === 'near' && (
           <Circle
             center={me}
@@ -178,7 +189,16 @@ export default function HomePage() {
           className="pointer-events-auto mx-auto mb-4 max-w-lg px-4"
         >
           <ViewSwitch view={view} onChange={chooseView} />
-          <ViewHint view={view} locating={!me && !geo.error} geoFailed={geoFailed} nearCount={nearCount} loading={loading} />
+          <ViewHint
+            view={view}
+            locating={!me && !geo.error}
+            geoFailed={geoFailed}
+            nearCount={nearCount}
+            loading={loading}
+            city={viewCity}
+            cityActive={cityActive}
+            outsideCities={outsideCities ? listCityNames(enabledCities) : null}
+          />
           <div className="rounded-[32px] bg-white/95 p-4 shadow-float backdrop-blur">
             <div className="flex items-center gap-3 px-1 pb-4">
               <span className="animate-floaty text-3xl" aria-hidden>
@@ -247,7 +267,12 @@ function FilterChip({
  * Ajusta la cámara según la vista elegida. En "cerca de mí" encuadra 500 m alrededor del usuario
  * y vuelve a encuadrar si el GPS afina la posición (más de 60 m de diferencia).
  */
-function ViewController({ view, me, reports }: { view: View; me: LatLng | null; reports: Report[] }) {
+/** El reporte pertenece a la ciudad (por su `cityId` o, en reportes antiguos, por su ubicación). */
+function inCity(r: Report, city: City) {
+  return r.cityId ? r.cityId === city.id : boundsContain(city.bounds, r)
+}
+
+function ViewController({ view, me, city, reports }: { view: View; me: LatLng | null; city: City; reports: Report[] }) {
   const map = useMap()
   const lastNear = useRef<LatLng | null>(null)
 
@@ -263,13 +288,13 @@ function ViewController({ view, me, reports }: { view: View; me: LatLng | null; 
     map.fitBounds(boundsAround(me, NEAR_RADIUS_M), paddingFor(map))
   }, [map, view, me])
 
-  // "Toda la ciudad": la zona urbana más cualquier reporte que quede fuera de ella.
+  // "Toda la ciudad": la zona urbana más los reportes de esa ciudad que queden fuera de ella.
   useEffect(() => {
     if (!map || view !== 'city') return
-    const bounds = new google.maps.LatLngBounds(TACNA_CITY_BOUNDS)
-    reports.forEach((r) => bounds.extend({ lat: r.lat, lng: r.lng }))
+    const bounds = new google.maps.LatLngBounds(city.viewBounds)
+    reports.filter((r) => inCity(r, city)).forEach((r) => bounds.extend({ lat: r.lat, lng: r.lng }))
     map.fitBounds(bounds, paddingFor(map))
-  }, [map, view]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [map, view, city.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return null
 }
@@ -316,15 +341,25 @@ function ViewHint({
   geoFailed,
   nearCount,
   loading,
+  city,
+  cityActive,
+  outsideCities,
 }: {
   view: View
   locating: boolean
   geoFailed: boolean
   nearCount: number
   loading: boolean
+  city: City
+  cityActive: number
+  /** Nombres de las ciudades activas, si la persona está fuera de todas. */
+  outsideCities: string | null
 }) {
   let text: string | null = null
-  if (geoFailed) text = 'Activa tu ubicación para ver los huecos cerca de ti.'
+  if (outsideCities) text = `Huecazo aún no llega a tu zona. Por ahora estamos en ${outsideCities}.`
+  else if (geoFailed) text = 'Activa tu ubicación para ver los huecos cerca de ti.'
+  else if (view === 'city' && !loading)
+    text = `${city.name}: ${cityActive} ${cityActive === 1 ? 'hueco por reparar' : 'huecos por reparar'}`
   else if (view === 'near' && locating) text = 'Buscando tu ubicación…'
   else if (view === 'near' && !loading)
     text =

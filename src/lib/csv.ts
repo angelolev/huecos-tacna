@@ -7,13 +7,14 @@ function cell(value: unknown) {
   return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
 }
 
-export function exportReportsCsv(reports: Report[]) {
+export function exportReportsCsv(reports: Report[], cityName: (r: Report) => string, cityId?: string) {
   const header = [
-    'ID', 'Fecha', 'Estado', 'Severidad', 'Confirmaciones', 'Dirección',
+    'ID', 'Ciudad', 'Fecha', 'Estado', 'Severidad', 'Confirmaciones', 'Dirección',
     'Latitud', 'Longitud', 'Nota', 'Foto 1', 'Foto 2', 'Google Maps',
   ]
   const rows = reports.map((r) => [
     r.id,
+    cityName(r),
     r.createdAt?.toISOString() ?? '',
     STATUS_META[r.status]?.label ?? r.status,
     SEVERITY_META[r.severity]?.label ?? r.severity,
@@ -32,7 +33,7 @@ export function exportReportsCsv(reports: Report[]) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `huecazo-${new Date().toISOString().slice(0, 10)}.csv`
+  a.download = `huecazo-${cityId ? `${cityId}-` : ''}${new Date().toISOString().slice(0, 10)}.csv`
   a.click()
   URL.revokeObjectURL(url)
 }

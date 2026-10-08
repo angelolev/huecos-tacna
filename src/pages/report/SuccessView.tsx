@@ -61,7 +61,7 @@ export function SuccessView({
         className="mt-3 max-w-xs text-ink-muted"
       >
         {kind === 'created'
-          ? 'Tu reporte ya aparece en el mapa de Tacna. Cada reporte ayuda a que lo reparen antes.'
+          ? 'Tu reporte ya aparece en el mapa. Cada reporte ayuda a que lo reparen antes.'
           : 'Sumaste tu voz a un reporte que ya existía. Mientras más vecinos lo confirman, más prioridad tiene.'}
       </motion.p>
 
