@@ -69,8 +69,16 @@ Abre en el celular la URL `https://192.168.x.x:5173` que muestra la terminal y a
 > En computadoras de escritorio la ubicación viene del WiFi o la IP y puede tener cientos de metros de error. Para probar la precisión real, usa el celular con el GPS activado.
 
 ### 5. Desplegar
-- **Vercel**: importa el repo, agrega las variables `VITE_*` y listo (ya incluye `vercel.json`).
-- **Firebase Hosting**: `pnpm build && pnpm dlx firebase-tools deploy --only hosting`.
+Producción: **https://huecos-tacna.vercel.app**
+
+El proyecto de Vercel está conectado a este repositorio:
+- Cada `git push` a `main` despliega automáticamente a producción.
+- Las demás ramas y los pull requests generan una URL de vista previa.
+
+Las variables `VITE_*` están configuradas en Vercel (Production y Preview). Si cambias alguna, actualízala también allí y vuelve a desplegar. Para desplegar a mano sin hacer push:
+```bash
+pnpm dlx vercel@latest deploy --prod
+```
 
 ## Modelo de datos
 
