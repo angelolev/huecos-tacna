@@ -1,12 +1,14 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Ban, Building2, Download, LoaderCircle, LogOut, Search, Trash2, Users, X } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { Ban, BarChart3, Building2, Download, LoaderCircle, LogOut, MapPinned, Search, Trash2, Users, X } from 'lucide-react'
 import { useMap } from '@vis.gl/react-google-maps'
 import { useAuth } from '../../context/AuthContext'
 import { useCities } from '../../context/CitiesContext'
 import { backfillReportCities, cityExists, saveCity } from '../../lib/cities'
 import { boundsContain } from '../../lib/geo'
 import { CitiesManager } from './CitiesManager'
+import { MetricsView } from './MetricsView'
+import { usePointsData } from '../../hooks/usePoints'
 import { POINTS } from '../../lib/points'
 import { useReports } from '../../hooks/useReports'
 import { ReportsMap } from '../../components/ReportsMap'
@@ -21,6 +23,7 @@ import type { City, Report, ReportStatus, Severity } from '../../lib/types'
 
 type Period = '7' | '30' | 'all'
 type Sort = 'recent' | 'confirmed' | 'severity'
+type View = 'mapa' | 'metricas'
 
 const SEVERITY_RANK: Record<Severity, number> = { peligroso: 3, mediano: 2, pequeno: 1 }
 
@@ -28,10 +31,19 @@ export default function AdminPage() {
   const { user, signOutUser } = useAuth()
   const { reports, loading, error } = useReports()
   const { cities, seeded, loading: citiesLoading, cityName } = useCities()
+  const points = usePointsData(reports)
+
+  // La vista va en la URL (?vista=metricas) para que sobreviva a recargar la página.
+  const [params, setParams] = useSearchParams()
+  const view: View = params.get('vista') === 'metricas' ? 'metricas' : 'mapa'
+  const setView = (v: View) => setParams(v === 'metricas' ? { vista: 'metricas' } : {}, { replace: true })
 
   const [cityFilter, setCityFilter] = useState<string>('all')
   const [citiesOpen, setCitiesOpen] = useState(false)
-  const cityOf = (r: Report) => r.cityId ?? cities.find((c) => boundsContain(c.bounds, r))?.id ?? null
+  const cityOf = useCallback(
+    (r: Report) => r.cityId ?? cities.find((c) => boundsContain(c.bounds, r))?.id ?? null,
+    [cities],
+  )
   const selectedCity = cities.find((c) => c.id === cityFilter) ?? null
 
   // Primera vez: crea la ciudad inicial (Tacna) en Firestore.
@@ -56,7 +68,7 @@ export default function AdminPage() {
 
   const cityReports = useMemo(
     () => (cityFilter === 'all' ? reports : reports.filter((r) => cityOf(r) === cityFilter)),
-    [reports, cityFilter, cities], // eslint-disable-line react-hooks/exhaustive-deps
+    [reports, cityFilter, cityOf],
   )
 
   const [statusFilter, setStatusFilter] = useState<Set<ReportStatus>>(new Set(['pendiente', 'verificado']))
@@ -89,6 +101,16 @@ export default function AdminPage() {
 
   const selected = reports.find((r) => r.id === selectedId) ?? null
 
+  // Desde las métricas: abre el reporte en el mapa, ajustando los filtros para que se vea.
+  const openReport = (r: Report) => {
+    setStatusFilter((f) => new Set(f).add(r.status))
+    setSevFilter((f) => new Set(f).add(r.severity))
+    setPeriod('all')
+    setSearch('')
+    setSelectedId(r.id)
+    setView('mapa')
+  }
+
   return (
     <div className="flex h-dvh flex-col bg-cream-100 text-ink lg:flex-row">
       {/* Sidebar */}
@@ -109,8 +131,12 @@ export default function AdminPage() {
           </button>
         </div>
 
+        <div className="px-5 pt-3">
+          <ViewTabs view={view} onChange={setView} full />
+        </div>
+
         {/* Ciudad */}
-        <div className="px-5 pt-4">
+        <div className="px-5 pt-3">
           <CitySelect cities={cities} value={cityFilter} onChange={setCityFilter} reports={reports} cityOf={cityOf} />
         </div>
 
@@ -249,6 +275,68 @@ export default function AdminPage() {
         {selected && <AdminDetail key={selected.id} report={selected} onClose={() => setSelectedId(null)} />}
         <CitiesManager open={citiesOpen} onClose={() => setCitiesOpen(false)} reports={reports} />
       </section>
+
+      {/* Métricas: capa encima del mapa (el mapa sigue montado para no recargarlo al volver). */}
+      {view === 'metricas' && (
+        <div className="fixed inset-0 z-30 overflow-y-auto bg-cream-100">
+          <header className="sticky top-0 z-10 border-b-2 border-line bg-cream-50/95 backdrop-blur">
+            <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-3 px-4 py-3 sm:px-6">
+              <Link to="/" className="shrink-0">
+                <PinMark size={30} />
+              </Link>
+              <div className="min-w-0 flex-1">
+                <p className="font-display text-2xl font-semibold leading-none">Métricas</p>
+                <p className="truncate text-xs text-ink-muted">{user?.email}</p>
+              </div>
+              <ViewTabs view={view} onChange={setView} />
+              <div className="order-last w-full sm:order-none sm:w-64">
+                <CitySelect cities={cities} value={cityFilter} onChange={setCityFilter} reports={reports} cityOf={cityOf} />
+              </div>
+              <button onClick={() => setCitiesOpen(true)} className="icon-btn" title="Ciudades" aria-label="Administrar ciudades">
+                <Building2 className="h-4 w-4" />
+              </button>
+              <button onClick={signOutUser} className="icon-btn" title="Cerrar sesión" aria-label="Cerrar sesión">
+                <LogOut className="h-4 w-4" />
+              </button>
+            </div>
+          </header>
+          <MetricsView
+            cityReports={cityReports}
+            reports={reports}
+            cityId={cityFilter === 'all' ? null : cityFilter}
+            cityOf={cityOf}
+            cityName={cityName}
+            points={points}
+            loading={loading}
+            onOpenReport={openReport}
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ViewTabs({ view, onChange, full }: { view: View; onChange: (v: View) => void; full?: boolean }) {
+  const tabs: { id: View; label: string; icon: typeof MapPinned }[] = [
+    { id: 'mapa', label: 'Mapa', icon: MapPinned },
+    { id: 'metricas', label: 'Métricas', icon: BarChart3 },
+  ]
+  return (
+    <div className={`flex shrink-0 gap-1 rounded-full bg-white p-1 shadow-soft ${full ? 'w-full' : ''}`} role="tablist" aria-label="Vista">
+      {tabs.map(({ id, label, icon: Icon }) => (
+        <button
+          key={id}
+          role="tab"
+          aria-selected={view === id}
+          onClick={() => onChange(id)}
+          className={`flex items-center justify-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold transition ${full ? 'flex-1' : ''} ${
+            view === id ? 'bg-ink text-white' : 'text-ink-soft hover:text-ink'
+          }`}
+        >
+          <Icon className="h-4 w-4" />
+          <span className={id === 'mapa' && !full ? 'sr-only sm:not-sr-only' : ''}>{label}</span>
+        </button>
+      ))}
     </div>
   )
 }

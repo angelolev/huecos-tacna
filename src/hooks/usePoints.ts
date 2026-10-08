@@ -39,6 +39,8 @@ export function usePointsData(reports: Report[]) {
   const events = useMemo(() => pointEvents(reports, confirmations ?? [], bonuses ?? []), [reports, confirmations, bonuses])
   return {
     events,
+    confirmations: confirmations ?? [],
+    bonuses: bonuses ?? [],
     profiles: profiles ?? new Map<string, Profile>(),
     loading: confirmations === null || profiles === null || bonuses === null,
   }

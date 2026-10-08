@@ -121,6 +121,17 @@ Los puntos **no se guardan**: se calculan en `src/lib/points.ts` a partir de los
 - **Alias ofensivos**: el admin puede borrar el documento `profiles/{uid}` desde la consola de Firestore (las reglas lo permiten).
 - **Escala**: el ranking se calcula en el navegador con todos los reportes y confirmaciones. Funciona bien hasta unos miles de reportes; más allá conviene precalcularlo con una Cloud Function.
 
+## Métricas (panel admin)
+
+Pestaña **Métricas** en `/admin` (`/admin?vista=metricas`), filtrable por ciudad y periodo (7, 30, 90 días o todo). Se calcula en el navegador (`src/lib/metrics.ts`) y se actualiza en tiempo real.
+
+- **Reportes**: recibidos (vs. el periodo anterior), por atender (y cuántos peligrosos), reparados, tasa de resolución, tiempo de reparación (mediana entre el reporte y el cambio a "Reparado", tomado de `updatedAt`) y % de falsos.
+- **Nuevos vs. reparados**: por día, semana o mes según el periodo, con vista de tabla.
+- **Pendientes por antigüedad y severidad**.
+- **Atender primero**: pendientes ordenados por severidad × apoyos de vecinos × antigüedad. Al tocar uno, se abre en el mapa.
+- **Zonas con más huecos**: pendientes agrupados por geohash de 6 caracteres (~1 km).
+- **Vecinos**: cuántos hay (reportaron, confirmaron, eligieron alias o entraron con Google), activos, nuevos, con Google, recurrentes; y una tabla de los más activos (reportes, reparados, falsos ⚠️, confirmaciones, puntos) exportable a CSV. Nunca muestra nombres reales ni correos. Quien solo miró el mapa no se cuenta: contar todas las cuentas de Firebase Auth requiere una Cloud Function con el Admin SDK.
+
 ## SEO y redes
 
 - **Metadatos base** en `index.html`: título y descripción con foco local ("huecos en las pistas de Tacna"), Open Graph y Twitter con `public/og-image.png` (1200×630), y datos estructurados JSON-LD (`WebSite` y `WebApplication`).

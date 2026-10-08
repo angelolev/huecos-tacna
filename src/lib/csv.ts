@@ -1,4 +1,6 @@
 import { googleMapsLink } from './geo'
+import { neighborName } from './metrics'
+import type { Neighbor } from './metrics'
 import { SEVERITY_META, STATUS_META } from './types'
 import type { Report } from './types'
 
@@ -27,13 +29,37 @@ export function exportReportsCsv(reports: Report[], cityName: (r: Report) => str
     r.photos[1]?.url ?? '',
     googleMapsLink(r),
   ])
+  download(`huecazo-${cityId ? `${cityId}-` : ''}${new Date().toISOString().slice(0, 10)}.csv`, [header, ...rows])
+}
+
+export function exportNeighborsCsv(rows: Neighbor[], cityName: (id: string | null) => string, cityId?: string) {
+  const header = [
+    'Vecino', 'Cuenta', 'Ciudad', 'Reportes', 'Reparados', 'Falsos', 'Confirmaciones dadas',
+    'Puntos', 'Primera actividad', 'Última actividad',
+  ]
+  const data = rows.map((n) => [
+    neighborName(n),
+    n.google ? 'Google' : 'Anónima',
+    n.cityId ? cityName(n.cityId) : '',
+    n.reports,
+    n.fixed,
+    n.rejected,
+    n.confirmationsGiven,
+    n.points,
+    n.firstAt?.toISOString() ?? '',
+    n.lastAt?.toISOString() ?? '',
+  ])
+  download(`huecazo-vecinos-${cityId ? `${cityId}-` : ''}${new Date().toISOString().slice(0, 10)}.csv`, [header, ...data])
+}
+
+function download(filename: string, rows: unknown[][]) {
   // BOM para que Excel abra bien las tildes
-  const csv = '﻿' + [header, ...rows].map((row) => row.map(cell).join(',')).join('\r\n')
+  const csv = '﻿' + rows.map((row) => row.map(cell).join(',')).join('\r\n')
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `huecazo-${cityId ? `${cityId}-` : ''}${new Date().toISOString().slice(0, 10)}.csv`
+  a.download = filename
   a.click()
   URL.revokeObjectURL(url)
 }
