@@ -11,6 +11,9 @@ export function authErrorMessage(err: unknown) {
       return 'Cerraste la ventana de Google antes de terminar.'
     case 'auth/popup-blocked':
       return 'El navegador bloqueó la ventana de Google. Permite las ventanas emergentes e intenta de nuevo.'
+    case 'permission-denied':
+    case 'unavailable':
+      return 'No pudimos pasar tus reportes a tu cuenta de Google. Revisa tu conexión e intenta de nuevo; tus reportes siguen a salvo.'
     case 'auth/network-request-failed':
       return 'Sin conexión. Revisa tu internet e intenta de nuevo.'
     default:

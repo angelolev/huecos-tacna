@@ -85,7 +85,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (err instanceof FirebaseError && err.code === 'auth/credential-already-in-use') {
         const cred = GoogleAuthProvider.credentialFromError(err)
         if (cred) {
-          const transfer = current.isAnonymous ? await prepareTransfer(current.uid).catch(() => null) : null
+          // Si no se puede preparar el traspaso, NO cambiamos de cuenta: la sesión anónima
+          // (con sus reportes) se conserva y la persona puede reintentar.
+          const transfer = current.isAnonymous ? await prepareTransfer(current.uid) : null
           const { user: google } = await signInWithCredential(auth, cred)
           if (transfer) {
             await completeTransfer(transfer, google.uid).catch((e) => console.error('No se pudieron traspasar los reportes', e))
