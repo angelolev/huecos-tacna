@@ -1,5 +1,6 @@
 export type Severity = 'pequeno' | 'mediano' | 'peligroso'
-export type ReportStatus = 'pendiente' | 'verificado' | 'reparado'
+/** `rechazado`: el admin lo marcó como falso; no se muestra en el mapa y resta puntos. */
+export type ReportStatus = 'pendiente' | 'verificado' | 'reparado' | 'rechazado'
 
 export interface ReportPhoto {
   url: string
@@ -91,7 +92,17 @@ export const STATUS_META: Record<ReportStatus, Tone & { label: string; short: st
   pendiente: { label: 'Por reparar', short: 'Reportado', color: '#FF8E7A', soft: '#FFE3DC', deep: '#D9563F' },
   verificado: { label: 'Verificado', short: 'Verificado', color: '#B5A6FF', soft: '#EEEAFF', deep: '#5F4BC9' },
   reparado: { label: 'Reparado', short: 'Reparado', color: '#7FD8A9', soft: '#DDF5E8', deep: '#22865A' },
+  rechazado: { label: 'Rechazado', short: 'Rechazado', color: '#C4BFCC', soft: '#EFEDF2', deep: '#5B5668' },
 }
 
 export const SEVERITIES = Object.keys(SEVERITY_META) as Severity[]
-export const STATUSES = Object.keys(STATUS_META) as ReportStatus[]
+/** Estados del recorrido normal de un reporte (los que ve el público). */
+export const STATUSES: ReportStatus[] = ['pendiente', 'verificado', 'reparado']
+export const isPublic = (r: { status: ReportStatus }) => r.status !== 'rechazado'
+
+/** Perfil público para el ranking (`profiles/{uid}`). Opcional: sin perfil no apareces en el ranking. */
+export interface Profile {
+  uid: string
+  alias: string
+  emoji: string
+}

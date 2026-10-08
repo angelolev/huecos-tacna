@@ -49,6 +49,28 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // Perfil público para el ranking: solo alias + emoji (nunca nombre ni correo).
+    match /profiles/{uid} {
+      function validProfile() {
+        let p = request.resource.data;
+        return p.keys().hasOnly(['alias', 'emoji', 'updatedAt'])
+          && p.keys().hasAll(['alias', 'emoji', 'updatedAt'])
+          && p.alias is string && p.alias.matches('^[\\p{L}\\p{N} _.-]{3,20}$')
+          && p.emoji is string && p.emoji.size() >= 1 && p.emoji.size() <= 8
+          && p.updatedAt == request.time;
+      }
+
+      allow read: if true;
+      allow create, update: if signedIn() && request.auth.uid == uid && validProfile();
+      // El dueño puede salir del ranking; el admin puede quitar un alias ofensivo.
+      allow delete: if (signedIn() && request.auth.uid == uid) || isAdmin();
+    }
+
+    // Las confirmaciones (solo la fecha; el id es el uid anónimo) son públicas para calcular los puntos.
+    match /{path=**}/confirmations/{uid} {
+      allow read: if true;
+    }
+
     match /admins/{email} {
       allow read: if signedIn() && request.auth.token.email == email;
       allow write: if false;
@@ -122,7 +144,7 @@ service cloud.firestore {
       function isAdminStatusChange() {
         return isAdmin()
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
-          && request.resource.data.status in ['pendiente', 'verificado', 'reparado']
+          && request.resource.data.status in ['pendiente', 'verificado', 'reparado', 'rechazado']
           && request.resource.data.updatedAt == request.time;
       }
 

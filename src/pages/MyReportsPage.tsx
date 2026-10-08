@@ -3,7 +3,10 @@ import { Link } from 'react-router-dom'
 import { motion } from 'motion/react'
 import { ArrowLeft, Camera, LoaderCircle, MapPin, Users } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
-import { useMyReports } from '../hooks/useReports'
+import { useMyReports, useReports } from '../hooks/useReports'
+import { useMyPoints } from '../hooks/usePoints'
+import { ProfileCard } from '../components/ProfileCard'
+import { POINTS } from '../lib/points'
 import { useCountUp } from '../hooks/useCountUp'
 import { SeverityBadge, StatusTrack } from '../components/Badges'
 import { GoogleButton } from '../components/GoogleButton'
@@ -14,6 +17,9 @@ import { useDocumentMeta } from '../hooks/useDocumentMeta'
 export default function MyReportsPage() {
   const { user, linkGoogle } = useAuth()
   const { reports, loading } = useMyReports(user?.uid)
+  // Para los puntos se necesitan todos los reportes (confirmaciones que diste a otros).
+  const { reports: allReports } = useReports()
+  const points = useMyPoints(user?.uid, allReports)
   useDocumentMeta({ title: 'Mis reportes', path: '/mis-reportes', noindex: true })
   const [linking, setLinking] = useState(false)
   const [linkMsg, setLinkMsg] = useState<string | null>(null)
@@ -33,6 +39,15 @@ export default function MyReportsPage() {
       </header>
 
       <main className="mx-auto max-w-lg px-4 pt-2">
+        <ProfileCard
+          profile={points.profile}
+          total={points.total}
+          month={points.month}
+          level={points.level}
+          next={points.next}
+          progress={points.progress}
+        />
+
         {!loading && reports.length > 0 && (
           <div className="mb-5 grid grid-cols-3 gap-2.5">
             <Stat value={reports.length} label="reportados" tone="bg-coral-soft text-coral-deep" emoji="📸" i={0} />
@@ -101,7 +116,13 @@ export default function MyReportsPage() {
                       </p>
                       <SeverityBadge severity={r.severity} />
                     </div>
-                    <StatusTrack status={r.status} />
+                    {r.status === 'rechazado' ? (
+                      <p className="rounded-xl bg-cream-200 px-2.5 py-1 text-xs text-ink-soft">
+                        🚫 Descartado: no pudimos confirmar este hueco ({POINTS.rejected} pts)
+                      </p>
+                    ) : (
+                      <StatusTrack status={r.status} />
+                    )}
                     <p className="flex items-center gap-2 text-xs text-ink-muted">
                       {timeAgo(r.createdAt)}
                       {r.confirmations > 0 && (

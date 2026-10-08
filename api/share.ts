@@ -10,6 +10,7 @@ const PROJECT_ID = process.env.VITE_FIREBASE_PROJECT_ID ?? 'huecos-603c6'
 
 const SEVERITY: Record<string, string> = { pequeno: 'pequeño', mediano: 'mediano', peligroso: 'peligroso' }
 const STATUS: Record<string, string> = { pendiente: 'Por reparar', verificado: 'Verificado', reparado: '¡Ya fue reparado!' }
+// Los reportes rechazados (falsos) no se comparten con su foto.
 
 type FsValue = { stringValue?: string; integerValue?: string; nullValue?: null; arrayValue?: { values?: FsValue[] }; mapValue?: { fields?: Record<string, FsValue> } }
 
@@ -60,7 +61,7 @@ export async function GET(request: Request) {
   if (!/^[A-Za-z0-9]{10,40}$/.test(id)) return html(shell, 'public, max-age=0, s-maxage=3600')
 
   const report = await getReport(id).catch(() => null)
-  if (!report) return html(shell, 'public, max-age=0, s-maxage=300')
+  if (!report || report.status === 'rechazado') return html(shell, 'public, max-age=0, s-maxage=300')
 
   const severity = SEVERITY[report.severity] ?? report.severity
   const place = report.address ?? 'Tacna'

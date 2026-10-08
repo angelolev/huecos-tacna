@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
-import { Building2, Camera, Info, ListChecks, LoaderCircle, Navigation, UserRound } from 'lucide-react'
+import { Building2, Camera, Info, ListChecks, LoaderCircle, Navigation, Trophy, UserRound } from 'lucide-react'
 import { Circle, useMap } from '@vis.gl/react-google-maps'
 import { useAuth } from '../context/AuthContext'
 import { useReports } from '../hooks/useReports'
 import { useCountUp } from '../hooks/useCountUp'
 import { useGeoWatch } from '../hooks/useGeoWatch'
 import { useDocumentMeta } from '../hooks/useDocumentMeta'
+import { PointsToast } from '../components/PointsToast'
+import { pointEvents } from '../lib/points'
 import { Logo } from '../components/Logo'
 import { ReportsMap } from '../components/ReportsMap'
 import { ReportSheet } from '../components/ReportSheet'
@@ -63,20 +65,24 @@ export default function HomePage() {
   useEffect(() => {
     if (view === 'near' && geoFailed) setView('city')
   }, [view, geoFailed])
-  const isVisible = (s: ReportStatus) => (s === 'reparado' ? show.reparados : show.activos)
+  // Los reportes rechazados (falsos) nunca se muestran en el mapa.
+  const isVisible = (s: ReportStatus) => (s === 'reparado' ? show.reparados : s !== 'rechazado' && show.activos)
   const visible = useMemo(
-    () => reports.filter((r) => isVisible(r.status) || r.id === selectedId),
+    () => reports.filter((r) => isVisible(r.status) || (r.id === selectedId && r.status !== 'rechazado')),
     [reports, show, selectedId], // eslint-disable-line react-hooks/exhaustive-deps
   )
   const selected = reports.find((r) => r.id === selectedId) ?? null
-  const active = reports.filter((r) => r.status !== 'reparado').length
-  const fixed = reports.length - active
+  const isActive = (r: Report) => r.status === 'pendiente' || r.status === 'verificado'
+  const active = reports.filter(isActive).length
+  const fixed = reports.filter((r) => r.status === 'reparado').length
+  // Para el aviso "¡Ganaste puntos!" bastan los reportes (verificado, reparado, confirmaciones, rechazado).
+  const events = useMemo(() => pointEvents(reports, []), [reports])
   const cityActive = useMemo(
-    () => reports.filter((r) => r.status !== 'reparado' && inCity(r, viewCity)).length,
+    () => reports.filter((r) => isActive(r) && inCity(r, viewCity)).length,
     [reports, viewCity],
   )
   const nearCount = useMemo(
-    () => (me ? reports.filter((r) => r.status !== 'reparado' && metersBetween(me, r) <= NEAR_RADIUS_M).length : 0),
+    () => (me ? reports.filter((r) => isActive(r) && metersBetween(me, r) <= NEAR_RADIUS_M).length : 0),
     [reports, me],
   )
 
@@ -137,13 +143,18 @@ export default function HomePage() {
           <div className="rounded-full bg-white/95 py-2 pl-3 pr-4 shadow-soft backdrop-blur">
             <Logo />
           </div>
-          <button onClick={() => setAccountOpen(true)} className="icon-btn overflow-hidden" aria-label="Tu cuenta">
-            {user?.photoURL ? (
-              <img src={user.photoURL} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-            ) : (
-              <UserRound className="h-5 w-5 text-ink-soft" />
-            )}
-          </button>
+          <div className="flex gap-2">
+            <Link to="/ranking" className="icon-btn" aria-label="Ranking de vecinos">
+              <Trophy className="h-5 w-5 text-butter-deep" />
+            </Link>
+            <button onClick={() => setAccountOpen(true)} className="icon-btn overflow-hidden" aria-label="Tu cuenta">
+              {user?.photoURL ? (
+                <img src={user.photoURL} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+              ) : (
+                <UserRound className="h-5 w-5 text-ink-soft" />
+              )}
+            </button>
+          </div>
         </motion.div>
 
         <motion.div
@@ -229,7 +240,8 @@ export default function HomePage() {
         </motion.div>
       </footer>
 
-      <ReportSheet report={selected} onClose={() => select(null)} />
+      <ReportSheet report={selected?.status === 'rechazado' ? null : selected} onClose={() => select(null)} />
+      <PointsToast uid={user?.uid} events={events} ready={!loading} />
       <AccountSheet open={accountOpen} onClose={() => setAccountOpen(false)} />
     </div>
   )

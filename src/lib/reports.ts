@@ -97,7 +97,7 @@ export async function findNearby(center: LatLng, radiusM = DUPLICATE_RADIUS_M) {
       if (seen.has(d.id)) continue
       seen.add(d.id)
       const r = fromDoc(d)
-      if (r.status === 'reparado') continue
+      if (r.status === 'reparado' || r.status === 'rechazado') continue
       const distance = distanceBetween([r.lat, r.lng], c) * 1000
       if (distance <= radiusM) results.push({ ...r, distance })
     }

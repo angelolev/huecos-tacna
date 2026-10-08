@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import type { ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { AnimatePresence, motion, useDragControls } from 'motion/react'
 
 /** Hoja inferior que se cierra tocando fuera, con Esc o deslizándola hacia abajo. */
@@ -23,7 +24,8 @@ export function BottomSheet({
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose])
 
-  return (
+  // En un portal: así funciona aunque el padre tenga transformaciones (animaciones).
+  return createPortal(
     <AnimatePresence>
       {open && (
         <div className="fixed inset-0 z-50 flex items-end justify-center" role="dialog" aria-modal aria-label={label}>
@@ -60,6 +62,7 @@ export function BottomSheet({
           </motion.div>
         </div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   )
 }

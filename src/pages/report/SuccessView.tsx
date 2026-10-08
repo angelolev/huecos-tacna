@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext'
 import { GoogleButton } from '../../components/GoogleButton'
 import { confetti, haptic } from '../../lib/fx'
 import { ShareButton } from '../../components/ShareButton'
+import { POINTS } from '../../lib/points'
 import type { Severity } from '../../lib/types'
 import { authErrorMessage } from '../../lib/authErrors'
 
@@ -56,6 +57,14 @@ export function SuccessView({
       >
         {kind === 'created' ? '¡Gracias, vecino! 🎉' : '¡Gracias por confirmar! 🙌'}
       </motion.h1>
+      <motion.span
+        initial={{ opacity: 0, scale: 0.4 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 0.55, type: 'spring', stiffness: 400, damping: 12 }}
+        className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-butter-soft px-4 py-1.5 font-display text-lg font-semibold text-butter-deep"
+      >
+        ⭐ +{kind === 'created' ? POINTS.report : POINTS.confirmGiven} puntos
+      </motion.span>
       <motion.p
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}

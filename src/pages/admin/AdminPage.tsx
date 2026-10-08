@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Building2, Download, LoaderCircle, LogOut, Search, Trash2, Users, X } from 'lucide-react'
+import { Ban, Building2, Download, LoaderCircle, LogOut, Search, Trash2, Users, X } from 'lucide-react'
 import { useMap } from '@vis.gl/react-google-maps'
 import { useAuth } from '../../context/AuthContext'
 import { useCities } from '../../context/CitiesContext'
 import { backfillReportCities, cityExists, saveCity } from '../../lib/cities'
 import { boundsContain } from '../../lib/geo'
 import { CitiesManager } from './CitiesManager'
+import { POINTS } from '../../lib/points'
 import { useReports } from '../../hooks/useReports'
 import { ReportsMap } from '../../components/ReportsMap'
 import { ReportDetail } from '../../components/ReportDetail'
@@ -66,7 +67,7 @@ export default function AdminPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
   const counts = useMemo(() => {
-    const c: Record<ReportStatus, number> = { pendiente: 0, verificado: 0, reparado: 0 }
+    const c: Record<ReportStatus, number> = { pendiente: 0, verificado: 0, reparado: 0, rechazado: 0 }
     cityReports.forEach((r) => c[r.status]++)
     return c
   }, [cityReports])
@@ -133,6 +134,16 @@ export default function AdminPage() {
             )
           })}
         </div>
+        {counts.rechazado > 0 && (
+          <div className="px-5 pt-2">
+            <button
+              onClick={() => setStatusFilter(toggle(statusFilter, 'rechazado'))}
+              className={`text-xs font-semibold ${statusFilter.has('rechazado') ? 'text-ink' : 'text-ink-muted'} hover:text-ink`}
+            >
+              🚫 {statusFilter.has('rechazado') ? 'Ocultar' : 'Ver'} rechazados ({counts.rechazado})
+            </button>
+          </div>
+        )}
 
         <div className="space-y-3 px-5 pt-4">
           <div className="flex flex-wrap gap-1.5">
@@ -371,6 +382,24 @@ function AdminDetail({ report, onClose }: { report: Report; onClose: () => void 
               </div>
             </div>
             {err && <p className="text-xs text-coral-deep">{err}</p>}
+            {report.status === 'rechazado' ? (
+              <div className="rounded-2xl bg-cream-200 px-4 py-3 text-sm text-ink-soft">
+                🚫 Marcado como <b>falso</b>: no se muestra en el mapa y resta {-POINTS.rejected} pts a quien lo reportó.
+                <button onClick={() => setStatus('pendiente')} disabled={!!saving} className="mt-2 block font-semibold text-sky-deep">
+                  Restaurar como "Por reparar"
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setStatus('rechazado')}
+                disabled={!!saving}
+                className="btn-soft w-full text-sm"
+                title="Lo oculta del mapa y descuenta puntos a quien lo reportó"
+              >
+                {saving === 'rechazado' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Ban className="h-4 w-4 text-coral-deep" />}
+                Es falso (ocultar y restar {-POINTS.rejected} pts)
+              </button>
+            )}
             {confirmDelete ? (
               <div className="flex gap-2">
                 <button className="btn-soft flex-1" onClick={() => setConfirmDelete(false)} disabled={deleting}>
@@ -390,7 +419,7 @@ function AdminDetail({ report, onClose }: { report: Report; onClose: () => void 
                 onClick={() => setConfirmDelete(true)}
                 className="flex w-full items-center justify-center gap-2 py-2 text-xs font-semibold text-ink-muted hover:text-coral-deep"
               >
-                <Trash2 className="h-3.5 w-3.5" /> Eliminar reporte (spam / falso)
+                <Trash2 className="h-3.5 w-3.5" /> Eliminar definitivamente (borra también las fotos)
               </button>
             )}
           </div>

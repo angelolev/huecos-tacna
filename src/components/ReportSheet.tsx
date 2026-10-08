@@ -4,6 +4,7 @@ import { Hand, PartyPopper } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { confirmReport, hasConfirmed } from '../lib/reports'
 import { haptic } from '../lib/fx'
+import { POINTS } from '../lib/points'
 import type { Report } from '../lib/types'
 import { BottomSheet } from './BottomSheet'
 import { ReportDetail } from './ReportDetail'
@@ -47,7 +48,7 @@ function ConfirmButton({ report }: { report: Report }) {
         transition={{ type: 'spring', stiffness: 400, damping: 15 }}
         className="flex items-center justify-center gap-2 rounded-full bg-mint-soft py-3.5 font-display font-medium text-mint-deep"
       >
-        <PartyPopper className="h-5 w-5" /> ¡Gracias por confirmar!
+        <PartyPopper className="h-5 w-5" /> ¡Gracias por confirmar! +{POINTS.confirmGiven} pts
       </motion.div>
     )
   }

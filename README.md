@@ -100,6 +100,26 @@ Comportamiento:
 - **Pausar una ciudad** deja de aceptar reportes nuevos, pero los existentes se siguen viendo. Las ciudades no se borran.
 - **La primera vez que un admin abre el panel**, se crea automáticamente la ciudad **Tacna** y se asigna `cityId` a los reportes antiguos.
 
+## Puntos y ranking
+
+Los puntos **no se guardan**: se calculan en `src/lib/points.ts` a partir de los reportes y las confirmaciones, que ya están protegidos por las reglas. Nadie puede editarse su puntaje.
+
+| Acción | Puntos |
+|---|---|
+| Enviar un reporte | +10 |
+| El admin lo verifica | +10 |
+| Lo marcan como reparado | +10 |
+| Otro vecino confirma tu reporte | +2 c/u (máx. +10 por reporte) |
+| Confirmar el hueco de otro vecino | +2 |
+| El admin lo marca como **falso** | −20 (y se pierden los demás puntos de ese reporte) |
+
+- **Ranking** (`/ranking`): "Este mes" (reportes y confirmaciones del mes) e "Histórico", por ciudad. Solo aparece quien eligió un **alias + emoji** (`profiles/{uid}`) y tiene puntos positivos. Nunca se muestra el nombre real.
+- **Niveles**: 🌱 Nuevo vecino (0) → 🙂 Vecino atento (10) → 🔦 Cazahuecos (100) → 🚧 Inspector de pistas (300) → 🏆 Huecazo de oro (800).
+- **Aviso al abrir la app**: "¡Ganaste X puntos!" cuando un reporte tuyo fue verificado, reparado o confirmado por otros.
+- **Admin**: el botón **"Es falso"** marca el reporte como `rechazado` (desaparece del mapa y resta puntos). "Eliminar definitivamente" sigue disponible, pero no resta puntos.
+- **Alias ofensivos**: el admin puede borrar el documento `profiles/{uid}` desde la consola de Firestore (las reglas lo permiten).
+- **Escala**: el ranking se calcula en el navegador con todos los reportes y confirmaciones. Funciona bien hasta unos miles de reportes; más allá conviene precalcularlo con una Cloud Function.
+
 ## SEO y redes
 
 - **Metadatos base** en `index.html`: título y descripción con foco local ("huecos en las pistas de Tacna"), Open Graph y Twitter con `public/og-image.png` (1200×630), y datos estructurados JSON-LD (`WebSite` y `WebApplication`).
@@ -115,6 +135,7 @@ Después de desplegar:
 ## Modelo de datos
 
 ```
+profiles/{uid}                     // alias + emoji para el ranking (opcional)
 cities/{id}                        // id = slug: "tacna", "moquegua"
   name, department, enabled, order
   bounds      {north, south, east, west}   // zona donde se aceptan reportes
@@ -126,7 +147,7 @@ reports/{id}
   photos: [{ url, path }]    // 1–2 fotos en Storage: reports/{uid}/{id}/n.webp
   severity: pequeno | mediano | peligroso
   note: string (≤280)
-  status: pendiente | verificado | reparado
+  status: pendiente | verificado | reparado | rechazado
   confirmations: number
   reporterUid, address
   createdAt, updatedAt, lastConfirmedAt
