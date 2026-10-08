@@ -151,6 +151,8 @@ service cloud.firestore {
       // "Sigue ahí": +1 confirmación, una sola vez por usuario.
       function isConfirmation() {
         return signedIn()
+          // Nadie puede confirmar su propio reporte (daría puntos en el ranking).
+          && resource.data.reporterUid != request.auth.uid
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['confirmations', 'lastConfirmedAt'])
           && request.resource.data.confirmations == resource.data.confirmations + 1
           && request.resource.data.lastConfirmedAt == request.time
