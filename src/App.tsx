@@ -13,6 +13,7 @@ const MyReportsPage = lazy(() => import('./pages/MyReportsPage'))
 const AdminGate = lazy(() => import('./pages/admin/AdminGate'))
 const AboutPage = lazy(() => import('./pages/AboutPage'))
 const RankingPage = lazy(() => import('./pages/RankingPage'))
+const NeighborPage = lazy(() => import('./pages/NeighborPage'))
 
 function Splash() {
   return (
@@ -39,6 +40,7 @@ function AppRoutes() {
         <Route path="/admin" element={<AdminGate />} />
         <Route path="/acerca" element={<AboutPage />} />
         <Route path="/ranking" element={<RankingPage />} />
+        <Route path="/vecino/:uid" element={<NeighborPage />} />
         {/* Enlace para compartir un reporte (con vista previa de su foto, ver api/share.ts) */}
         <Route path="/h/:id" element={<ShareRedirect />} />
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -1,16 +1,18 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
-import { ArrowLeft, CircleHelp, Crown, LoaderCircle } from 'lucide-react'
+import { ArrowLeft, CircleHelp, LoaderCircle } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useCities } from '../context/CitiesContext'
 import { useReports } from '../hooks/useReports'
 import { usePointsData } from '../hooks/usePoints'
 import { useDocumentMeta } from '../hooks/useDocumentMeta'
+import { useBack } from '../hooks/useBack'
 import { AliasSheet } from '../components/AliasSheet'
 import { PointsHelpSheet } from '../components/PointsHelpSheet'
-import { levelFor, ranking, totalFor } from '../lib/points'
-import type { Period, RankingRow } from '../lib/points'
+import { CHAMPION_RING, ChampionChip, CrownBadge, championMonth } from '../components/ChampionBadge'
+import { levelFor, monthlyChampions, ranking, titlesByUid, totalFor } from '../lib/points'
+import type { Champion, Period, RankingRow } from '../lib/points'
 
 const PERIODS: { id: Period; label: string }[] = [
   { id: 'month', label: 'Este mes' },
@@ -29,6 +31,7 @@ export default function RankingPage() {
   const [aliasOpen, setAliasOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
   const loading = reportsLoading || pointsLoading
+  const back = useBack()
 
   useDocumentMeta({
     title: 'Ranking de vecinos',
@@ -58,13 +61,22 @@ export default function RankingPage() {
   const myProfile = user ? (profiles.get(user.uid) ?? null) : null
   const myTotal = user ? totalFor(user.uid, events) : 0
 
+  // Campeones de cada mes terminado (la coronita vale en cualquier ciudad).
+  const champions = useMemo(() => monthlyChampions(events, profiles), [events, profiles])
+  const titles = useMemo(() => titlesByUid(champions), [champions])
+  const titlesOf = (uid: string) => titles.get(uid) ?? []
+  const cityChampions = champions.filter((c) => c.cityId === cityId)
+  const now = new Date()
+  const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+  const reigning = cityChampions.find((c) => c.month.getTime() === lastMonth.getTime()) ?? null
+
   return (
     <div className="min-h-dvh bg-blobs pb-40">
       <header className="sticky top-0 z-10 bg-cream-100/80 pt-safe backdrop-blur">
         <div className="mx-auto flex max-w-lg items-center gap-3 px-4 py-3">
-          <Link to="/" className="icon-btn" aria-label="Volver al mapa">
+          <button onClick={back} className="icon-btn" aria-label="Volver">
             <ArrowLeft className="h-5 w-5" />
-          </Link>
+          </button>
           <h1 className="flex-1 font-display text-2xl font-semibold">Ranking 🏆</h1>
           <button onClick={() => setHelpOpen(true)} className="icon-btn" aria-label="¿Cómo gano puntos?">
             <CircleHelp className="h-5 w-5 text-sky-deep" />
@@ -123,14 +135,23 @@ export default function RankingPage() {
         ) : (
           <AnimatePresence mode="wait">
             <motion.div key={`${period}-${cityId}`} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-              <Podium rows={podium} myUid={user?.uid} />
+              {reigning && period === 'month' && <ReigningChampion champion={reigning} titles={titlesOf(reigning.uid)} />}
+              <Podium rows={podium} myUid={user?.uid} titlesOf={titlesOf} />
               {rest.length > 0 && (
                 <ol className="mt-6 space-y-2" start={4}>
                   {rest.map((r, i) => (
-                    <Row key={r.uid} row={r} position={i + 4} mine={r.uid === user?.uid} lifetime={lifetime.get(r.uid) ?? r.points} />
+                    <Row
+                      key={r.uid}
+                      row={r}
+                      position={i + 4}
+                      mine={r.uid === user?.uid}
+                      lifetime={lifetime.get(r.uid) ?? r.points}
+                      titles={titlesOf(r.uid)}
+                    />
                   ))}
                 </ol>
               )}
+              {period === 'all' && cityChampions.length > 0 && <HallOfFame champions={cityChampions} myUid={user?.uid} />}
             </motion.div>
           </AnimatePresence>
         )}
@@ -140,8 +161,13 @@ export default function RankingPage() {
       <div className="fixed inset-x-0 bottom-0 z-20 pb-safe">
         <div className="mx-auto max-w-lg px-4 pb-4">
           <div className="flex items-center gap-3 rounded-[28px] bg-ink px-4 py-3 text-white shadow-float">
-            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white/10 text-2xl">
+            <span
+              className={`relative grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white/10 text-2xl ${
+                user && titlesOf(user.uid).length ? 'ring-2 ring-butter' : ''
+              }`}
+            >
               {myProfile?.emoji ?? levelFor(myTotal).level.emoji}
+              {user && <CrownBadge titles={titlesOf(user.uid)} className="ring-ink" />}
             </span>
             <div className="min-w-0 flex-1">
               {myProfile ? (
@@ -171,13 +197,15 @@ export default function RankingPage() {
   )
 }
 
+const MotionLink = motion.create(Link)
+
 const PODIUM_STYLE = [
   { h: 'h-32', bg: 'bg-butter', medal: '🥇', delay: 0.15 },
   { h: 'h-24', bg: 'bg-lavender', medal: '🥈', delay: 0.05 },
   { h: 'h-20', bg: 'bg-coral', medal: '🥉', delay: 0.25 },
 ]
 
-function Podium({ rows, myUid }: { rows: RankingRow[]; myUid?: string }) {
+function Podium({ rows, myUid, titlesOf }: { rows: RankingRow[]; myUid?: string; titlesOf: (uid: string) => Champion[] }) {
   // Orden visual: 2.º, 1.º, 3.º
   const order = [1, 0, 2].filter((i) => rows[i])
   return (
@@ -185,53 +213,126 @@ function Podium({ rows, myUid }: { rows: RankingRow[]; myUid?: string }) {
       {order.map((i) => {
         const r = rows[i]
         const st = PODIUM_STYLE[i]
+        const titles = titlesOf(r.uid)
         return (
-          <motion.div
+          <MotionLink
             key={r.uid}
+            to={`/vecino/${r.uid}`}
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ type: 'spring', stiffness: 220, damping: 18, delay: st.delay }}
-            className="flex w-28 flex-col items-center"
+            className="flex w-28 flex-col items-center transition-transform active:scale-95"
+            aria-label={`Ver perfil de ${r.profile?.alias}`}
           >
             <div className="relative">
-              {i === 0 && <Crown className="absolute -top-6 left-1/2 h-6 w-6 -translate-x-1/2 text-butter-deep" fill="#FFD36E" />}
               <span
-                className={`grid h-16 w-16 place-items-center rounded-full bg-white text-4xl shadow-soft ${r.uid === myUid ? 'ring-4 ring-coral' : ''}`}
+                className={`grid h-16 w-16 place-items-center rounded-full bg-white text-4xl shadow-soft ${
+                  titles.length ? CHAMPION_RING : r.uid === myUid ? 'ring-4 ring-coral' : ''
+                }`}
               >
                 {r.profile?.emoji}
               </span>
+              <CrownBadge titles={titles} />
             </div>
-            <p className="mt-2 w-full truncate text-center text-sm font-semibold">{r.profile?.alias}</p>
+            <p className={`mt-2 w-full truncate text-center text-sm font-semibold ${titles.length ? 'text-butter-deep' : ''}`}>
+              {r.profile?.alias}
+            </p>
             <p className="text-xs text-ink-muted tabular">{r.points} pts</p>
             <div className={`mt-2 flex w-full ${st.h} items-start justify-center rounded-t-2xl ${st.bg} pt-2 text-2xl shadow-card`}>{st.medal}</div>
-          </motion.div>
+          </MotionLink>
         )
       })}
     </div>
   )
 }
 
-function Row({ row, position, mine, lifetime }: { row: RankingRow; position: number; mine: boolean; lifetime: number }) {
+function Row({
+  row,
+  position,
+  mine,
+  lifetime,
+  titles,
+}: {
+  row: RankingRow
+  position: number
+  mine: boolean
+  lifetime: number
+  titles: Champion[]
+}) {
   const { level } = levelFor(lifetime)
   return (
-    <motion.li
-      initial={{ opacity: 0, x: -10 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: Math.min(position - 4, 10) * 0.03 }}
-      className={`card flex items-center gap-3 px-4 py-3 ${mine ? 'ring-2 ring-coral' : ''}`}
-    >
+    <motion.li initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: Math.min(position - 4, 10) * 0.03 }}>
+      <Link
+        to={`/vecino/${row.uid}`}
+        className={`card flex items-center gap-3 px-4 py-3 transition active:scale-[0.98] ${mine ? 'ring-2 ring-coral' : ''}`}
+      >
       <span className="w-6 text-center font-display font-semibold tabular text-ink-muted">{position}</span>
-      <span className="text-2xl" aria-hidden>
+      <span className={`relative grid h-10 w-10 shrink-0 place-items-center rounded-full bg-cream-100 text-2xl ${titles.length ? CHAMPION_RING : ''}`} aria-hidden>
         {row.profile?.emoji}
+        <CrownBadge titles={titles} className="-right-2.5 -top-2.5 h-6 min-w-6 text-sm" />
       </span>
       <div className="min-w-0 flex-1">
-        <p className="truncate font-semibold">{row.profile?.alias}</p>
-        <p className="text-xs text-ink-muted">
-          {level.emoji} {level.name} · {row.reports} {row.reports === 1 ? 'reporte' : 'reportes'}
-        </p>
+        <p className={`truncate font-semibold ${titles.length ? 'text-butter-deep' : ''}`}>{row.profile?.alias}</p>
+        {titles.length ? (
+          <ChampionChip titles={titles} />
+        ) : (
+          <p className="text-xs text-ink-muted">
+            {level.emoji} {level.name} · {row.reports} {row.reports === 1 ? 'reporte' : 'reportes'}
+          </p>
+        )}
       </div>
       <span className="font-display text-lg font-semibold tabular">{row.points}</span>
+      </Link>
     </motion.li>
   )
 }
 
+/** "Campeón de septiembre" arriba del ranking del mes en curso. */
+function ReigningChampion({ champion, titles }: { champion: Champion; titles: Champion[] }) {
+  return (
+    <MotionLink
+      to={`/vecino/${champion.uid}`}
+      initial={{ opacity: 0, scale: 0.96 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="mb-2 flex items-center gap-3 rounded-[24px] bg-gradient-to-r from-butter-soft via-cream-50 to-butter-soft p-3 ring-2 ring-butter"
+    >
+      <span className={`relative grid h-12 w-12 shrink-0 place-items-center rounded-full bg-white text-3xl ${CHAMPION_RING}`}>
+        {champion.profile.emoji}
+        <CrownBadge titles={titles} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-xs font-bold uppercase tracking-wide text-butter-deep">Campeón de {championMonth(champion)}</p>
+        <p className="truncate font-display text-lg font-semibold">{champion.profile.alias}</p>
+      </div>
+      <p className="shrink-0 text-right">
+        <span className="block font-display text-xl font-semibold tabular">{champion.points}</span>
+        <span className="text-[11px] text-ink-muted">pts</span>
+      </p>
+    </MotionLink>
+  )
+}
+
+/** Campeones de cada mes en la ciudad, del más reciente al más antiguo. */
+function HallOfFame({ champions, myUid }: { champions: Champion[]; myUid?: string }) {
+  return (
+    <section className="mt-8">
+      <p className="mb-2 font-display text-xl font-semibold">👑 Campeones de cada mes</p>
+      <ol className="space-y-2">
+        {[...champions].reverse().map((c) => (
+          <li key={c.month.getTime()}>
+            <Link to={`/vecino/${c.uid}`} className={`card flex items-center gap-3 px-4 py-3 ${c.uid === myUid ? 'ring-2 ring-coral' : ''}`}>
+            <span className="text-2xl" aria-hidden>
+              {c.profile.emoji}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-semibold">{c.profile.alias}</p>
+              <p className="text-xs capitalize text-ink-muted">{championMonth(c)}</p>
+            </div>
+            <span className="font-display text-lg font-semibold tabular">{c.points}</span>
+            </Link>
+          </li>
+        ))}
+      </ol>
+    </section>
+  )
+}

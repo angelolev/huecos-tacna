@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import { Building2, Camera, Check, ChevronDown, Info, ListChecks, LoaderCircle, MapPin, Navigation, Trophy, UserRound } from 'lucide-react'
 import { Circle, useMap } from '@vis.gl/react-google-maps'
@@ -9,6 +9,7 @@ import { useCountUp } from '../hooks/useCountUp'
 import { useGeoWatch } from '../hooks/useGeoWatch'
 import { useDocumentMeta } from '../hooks/useDocumentMeta'
 import { PointsToast } from '../components/PointsToast'
+import { ChampionCelebration } from '../components/ChampionCelebration'
 import { pointEvents } from '../lib/points'
 import { Logo } from '../components/Logo'
 import { ReportsMap } from '../components/ReportsMap'
@@ -45,6 +46,8 @@ export default function HomePage() {
   const { user } = useAuth()
   const { reports, loading, error } = useReports()
   const [params, setParams] = useSearchParams()
+  const location = useLocation()
+  const navigate = useNavigate()
   const [show, setShow] = useState<Record<'activos' | 'reparados', boolean>>({ activos: true, reparados: false })
   const [accountOpen, setAccountOpen] = useState(false)
   useDocumentMeta()
@@ -129,11 +132,21 @@ export default function HomePage() {
     setView(id ? 'city' : 'near')
   }
 
+  // Abrir un reporte desde el mapa agrega una entrada al historial: "atrás" cierra el detalle en vez
+  // de salir de la app. Cambiar de reporte con uno ya abierto la reemplaza (un solo "atrás" lo cierra).
+  const openedHere = !!(location.state as { detalle?: boolean } | null)?.detalle
   const select = (id: string | null) => {
     const next = new URLSearchParams(params)
-    if (id) next.set('r', id)
-    else next.delete('r')
-    setParams(next, { replace: true })
+    if (id) {
+      next.set('r', id)
+      setParams(next, selectedId ? { replace: true, state: location.state } : { state: { detalle: true } })
+    } else if (openedHere) {
+      navigate(-1)
+    } else {
+      // Llegó con el reporte en la URL (enlace compartido, "Mis reportes"): solo lo quitamos.
+      next.delete('r')
+      setParams(next, { replace: true })
+    }
   }
 
   const toggle = (key: 'activos' | 'reparados') => {
@@ -290,6 +303,7 @@ export default function HomePage() {
         onPick={pickCity}
       />
       <PointsToast uid={user?.uid} events={events} ready={!loading} />
+      <ChampionCelebration uid={user?.uid} reports={reports} ready={!loading} />
       <AccountSheet open={accountOpen} onClose={() => setAccountOpen(false)} />
     </div>
   )

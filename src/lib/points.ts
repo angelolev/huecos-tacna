@@ -170,3 +170,78 @@ export function describeEvent(e: PointEvent) {
       return `Reportaste un hueco${where}`
   }
 }
+
+/** Campeón de un mes ya terminado en una ciudad: quien más puntos sumó ese mes (con alias). */
+export interface Champion {
+  cityId: string
+  /** Primer día del mes. */
+  month: Date
+  uid: string
+  points: number
+  profile: Profile
+}
+
+const monthIndex = (d: Date) => d.getFullYear() * 12 + d.getMonth()
+
+/**
+ * Campeones de cada mes terminado, por ciudad (del más antiguo al más reciente). Como los
+ * puntos, se calcula: si el admin marca un reporte como falso, el campeón de ese mes se recalcula.
+ */
+export function monthlyChampions(events: PointEvent[], profiles: Map<string, Profile>, now = new Date()): Champion[] {
+  const current = monthIndex(now)
+  const byMonth = new Map<number, PointEvent[]>()
+  for (const e of events) {
+    // Sin fecha = recién creado: es del mes en curso, que aún no termina.
+    if (!e.at) continue
+    const m = monthIndex(e.at)
+    if (m >= current) continue
+    byMonth.set(m, [...(byMonth.get(m) ?? []), e])
+  }
+  const cities = [...new Set(events.map((e) => e.cityId).filter((c): c is string => !!c))]
+  const champions: Champion[] = []
+  for (const [m, list] of [...byMonth.entries()].sort((a, b) => a[0] - b[0])) {
+    for (const cityId of cities) {
+      // `period: 'all'` porque los eventos ya son solo de ese mes.
+      const top = ranking(list, profiles, { period: 'all', cityId }).find((r) => r.profile && r.points > 0)
+      if (top?.profile) {
+        champions.push({ cityId, month: new Date(Math.floor(m / 12), m % 12, 1), uid: top.uid, points: top.points, profile: top.profile })
+      }
+    }
+  }
+  return champions
+}
+
+/** Títulos de campeón de cada persona (en cualquier ciudad). */
+export function titlesByUid(champions: Champion[]) {
+  const titles = new Map<string, Champion[]>()
+  for (const c of champions) titles.set(c.uid, [...(titles.get(c.uid) ?? []), c])
+  return titles
+}
+
+/** Resumen público de un vecino (página /vecino/:uid). */
+export function neighborSummary(uid: string, reports: Report[], events: PointEvent[], profiles: Map<string, Profile>) {
+  const mine = reports.filter((r) => r.reporterUid === uid && r.status !== 'rechazado')
+  const myEvents = events.filter((e) => e.uid === uid)
+  // Ciudad donde más participa: ahí se muestra su puesto.
+  const cities = new Map<string, number>()
+  myEvents.forEach((e) => e.cityId && cities.set(e.cityId, (cities.get(e.cityId) ?? 0) + 1))
+  const cityId = [...cities.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null
+  const position = (period: Period) => {
+    if (!cityId) return 0
+    const visible = ranking(events, profiles, { period, cityId }).filter((r) => r.profile && r.points > 0)
+    return visible.findIndex((r) => r.uid === uid) + 1
+  }
+  const dates = myEvents.map((e) => e.at?.getTime()).filter((t): t is number => t !== undefined)
+  return {
+    total: totalFor(uid, events),
+    month: totalFor(uid, events, 'month'),
+    reports: mine.length,
+    fixed: mine.filter((r) => r.status === 'reparado').length,
+    supportsReceived: mine.reduce((s, r) => s + r.confirmations, 0),
+    confirmationsGiven: myEvents.filter((e) => e.kind === 'confirmGiven').length,
+    cityId,
+    positionMonth: position('month'),
+    positionAll: position('all'),
+    since: dates.length ? new Date(Math.min(...dates)) : null,
+  }
+}

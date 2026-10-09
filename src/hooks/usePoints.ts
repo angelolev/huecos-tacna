@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { subscribeConfirmations, subscribeGoogleBonuses, subscribeProfiles } from '../lib/profiles'
-import { levelFor, pointEvents, totalFor } from '../lib/points'
+import { levelFor, monthlyChampions, pointEvents, totalFor } from '../lib/points'
 import type { Confirmation, GoogleBonus } from '../lib/points'
 import type { Profile, Report } from '../lib/types'
 
@@ -51,10 +51,16 @@ export function useMyPoints(uid: string | undefined, reports: Report[]) {
   const data = usePointsData(reports)
   const total = uid ? totalFor(uid, data.events) : 0
   const month = uid ? totalFor(uid, data.events, 'month') : 0
+  // Meses en que fue campeón (en cualquier ciudad).
+  const titles = useMemo(
+    () => (uid ? monthlyChampions(data.events, data.profiles).filter((c) => c.uid === uid) : []),
+    [uid, data.events, data.profiles],
+  )
   return {
     ...data,
     total,
     month,
+    titles,
     profile: uid ? (data.profiles.get(uid) ?? null) : null,
     ...levelFor(total),
   }

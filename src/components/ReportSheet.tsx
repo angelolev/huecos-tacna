@@ -11,7 +11,7 @@ import { ReportDetail } from './ReportDetail'
 
 export function ReportSheet({ report, onClose }: { report: Report | null; onClose: () => void }) {
   return (
-    <BottomSheet open={!!report} onClose={onClose} label="Detalle del reporte">
+    <BottomSheet open={!!report} onClose={onClose} label="Detalle del reporte" backCloses={false}>
       {report && <ReportDetail report={report} actions={<ConfirmButton report={report} />} />}
     </BottomSheet>
   )

@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom'
 import { motion } from 'motion/react'
 import { ChevronRight, CircleHelp, Pencil, Trophy } from 'lucide-react'
 import { useCountUp } from '../hooks/useCountUp'
-import type { Level } from '../lib/points'
+import type { Champion, Level } from '../lib/points'
+import { CHAMPION_RING, ChampionChip, CrownBadge } from './ChampionBadge'
 import type { Profile } from '../lib/types'
 import { AliasSheet } from './AliasSheet'
 import { PointsHelpSheet } from './PointsHelpSheet'
@@ -16,7 +17,9 @@ export function ProfileCard({
   level,
   next,
   progress,
+  titles,
 }: {
+  titles: Champion[]
   profile: Profile | null
   total: number
   month: number
@@ -38,17 +41,20 @@ export function ProfileCard({
       <div className="flex items-center gap-3 bg-gradient-to-br from-butter-soft via-cream-50 to-lavender-soft p-4">
         <button
           onClick={() => setAliasOpen(true)}
-          className="relative grid h-16 w-16 shrink-0 place-items-center rounded-full bg-white text-4xl shadow-soft transition active:scale-95"
+          className={`relative grid h-16 w-16 shrink-0 place-items-center rounded-full bg-white text-4xl shadow-soft transition active:scale-95 ${
+            titles.length ? CHAMPION_RING : ''
+          }`}
           aria-label="Editar alias"
         >
           {profile?.emoji ?? level.emoji}
+          <CrownBadge titles={titles} />
           <span className="absolute -bottom-1 -right-1 grid h-6 w-6 place-items-center rounded-full bg-ink text-white">
             <Pencil className="h-3 w-3" />
           </span>
         </button>
         <div className="min-w-0 flex-1">
           {profile ? (
-            <p className="truncate font-display text-xl font-semibold">{profile.alias}</p>
+            <p className={`truncate font-display text-xl font-semibold ${titles.length ? 'text-butter-deep' : ''}`}>{profile.alias}</p>
           ) : (
             <button onClick={() => setAliasOpen(true)} className="font-display text-lg font-semibold text-coral-deep underline-offset-2 hover:underline">
               Elige tu alias para el ranking
@@ -57,6 +63,7 @@ export function ProfileCard({
           <p className="text-sm font-semibold text-ink-soft">
             {level.emoji} {level.name}
           </p>
+          <ChampionChip titles={titles} className="mt-1" />
         </div>
         <div className="text-right">
           <p className="font-display text-3xl font-semibold leading-none tabular text-ink">{shown}</p>

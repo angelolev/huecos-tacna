@@ -2,11 +2,13 @@ import { useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { ArrowDownRight, ArrowUpRight, ChevronRight, Download, LoaderCircle, Search, Users } from 'lucide-react'
 import { SeverityBadge, StatusBadge } from '../../components/Badges'
+import { CHAMPION_RING, championLabel } from '../../components/ChampionBadge'
 import { exportNeighborsCsv } from '../../lib/csv'
 import { timeAgo } from '../../lib/format'
 import { hotZones, neighborMetrics, neighborName, neighbors, priorityQueue, reportMetrics, trend } from '../../lib/metrics'
 import type { MetricsPeriod, Neighbor, TrendBucket, TrendUnit } from '../../lib/metrics'
-import type { Confirmation, GoogleBonus, PointEvent } from '../../lib/points'
+import { monthlyChampions, titlesByUid } from '../../lib/points'
+import type { Champion, Confirmation, GoogleBonus, PointEvent } from '../../lib/points'
 import { SEVERITIES, SEVERITY_META } from '../../lib/types'
 import type { Profile, Report } from '../../lib/types'
 
@@ -72,6 +74,7 @@ export function MetricsView({ cityReports, reports, cityId, cityOf, cityName, po
     [reports, points, cityOf, cityId, period],
   )
   const nm = useMemo(() => neighborMetrics(people, period), [people, period])
+  const titles = useMemo(() => titlesByUid(monthlyChampions(points.events, points.profiles)), [points.events, points.profiles])
 
   if (loading) {
     return (
@@ -239,7 +242,7 @@ export function MetricsView({ cityReports, reports, cityId, cityOf, cityName, po
               <Stat label="Recurrentes" value={nf.format(nm.recurrent)} foot="participaron 2 veces o más" />
               <Stat label="Confirmaciones" value={nf.format(m.confirmations)} foot="apoyos a reportes en el periodo" />
             </div>
-            <NeighborsTable rows={people} showCity={!cityId} cityName={cityName} cityId={cityId} />
+            <NeighborsTable rows={people} showCity={!cityId} cityName={cityName} cityId={cityId} titles={titles} />
           </>
         )}
         <p className="text-xs text-ink-muted">
@@ -466,7 +469,9 @@ function NeighborsTable({
   showCity,
   cityName,
   cityId,
+  titles,
 }: {
+  titles: Map<string, Champion[]>
   rows: Neighbor[]
   showCity: boolean
   cityName: (id: string | null) => string
@@ -533,14 +538,32 @@ function NeighborsTable({
             <tbody className="tabular">
               {visible.map((n) => {
                 const suspicious = n.rejected >= 2 && n.rejected / Math.max(1, n.reports) >= 0.5
+                const won = titles.get(n.uid) ?? []
                 return (
                   <tr key={n.uid} className="border-b border-line last:border-0">
                     <td className="py-2 pl-5 pr-2">
                       <span className="flex items-center gap-2">
-                        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-cream-200 text-base">{n.profile?.emoji ?? '👤'}</span>
+                        <span className={`relative grid h-8 w-8 shrink-0 place-items-center rounded-full bg-cream-200 text-base ${won.length ? CHAMPION_RING : ''}`}>
+                          {n.profile?.emoji ?? '👤'}
+                        </span>
                         <span className="min-w-0">
-                          <span className={`block truncate font-semibold ${n.profile ? 'text-ink' : 'text-ink-muted'}`}>{neighborName(n)}</span>
-                          <span className="text-[11px] text-ink-muted">{n.google ? 'Cuenta Google' : 'Sin cuenta'}</span>
+                          {n.profile ? (
+                            <a
+                              href={`/vecino/${n.uid}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className={`block truncate font-semibold hover:underline ${won.length ? 'text-butter-deep' : 'text-ink'}`}
+                            >
+                              {won.length > 0 && '👑 '}
+                              {neighborName(n)}
+                            </a>
+                          ) : (
+                            <span className="block truncate font-semibold text-ink-muted">{neighborName(n)}</span>
+                          )}
+                          <span className="text-[11px] text-ink-muted">
+                            {n.google ? 'Cuenta Google' : 'Sin cuenta'}
+                            {won.length > 0 && ` · 👑 ${championLabel(won)}`}
+                          </span>
                         </span>
                       </span>
                     </td>

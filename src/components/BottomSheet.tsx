@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import type { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion, useDragControls } from 'motion/react'
+import { useBackClose } from '../hooks/useBack'
 
 /** Hoja inferior que se cierra tocando fuera, con Esc o deslizándola hacia abajo. */
 export function BottomSheet({
@@ -9,13 +10,17 @@ export function BottomSheet({
   onClose,
   children,
   label,
+  backCloses = true,
 }: {
   open: boolean
   onClose: () => void
   children: ReactNode
   label: string
+  /** El botón "atrás" del celular cierra la hoja. Desactívalo si la hoja ya depende de la URL. */
+  backCloses?: boolean
 }) {
   const controls = useDragControls()
+  useBackClose(open && backCloses, onClose)
 
   useEffect(() => {
     if (!open) return

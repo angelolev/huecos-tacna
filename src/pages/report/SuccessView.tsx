@@ -109,7 +109,7 @@ export function SuccessView({
       )}
 
       <div className="mt-auto grid w-full gap-3 pt-8">
-        <Link to={`/?r=${report.id}`} className="btn-primary">
+        <Link to={`/?r=${report.id}`} replace className="btn-primary">
           <MapPinned className="h-5 w-5" /> Verlo en el mapa
         </Link>
         <ShareButton report={report} label="Compartir con mis vecinos" />

@@ -6,6 +6,7 @@ import { ArrowLeft, Building2, LoaderCircle, MapPinned, Pencil, Plus, Search, X 
 import { MAP_ID } from '../../components/MapsProvider'
 import { useCities } from '../../context/CitiesContext'
 import { saveCity, setCityEnabled, slugify } from '../../lib/cities'
+import { useBackClose } from '../../hooks/useBack'
 import { boundsContain } from '../../lib/geo'
 import { PERU_BOUNDS } from '../../lib/types'
 import type { Bounds, City, Report } from '../../lib/types'
@@ -15,6 +16,7 @@ type Mode = { kind: 'list' } | { kind: 'edit'; city: City | null }
 /** Panel para agregar ciudades, ajustar su zona y activarlas o pausarlas. */
 export function CitiesManager({ open, onClose, reports }: { open: boolean; onClose: () => void; reports: Report[] }) {
   const [mode, setMode] = useState<Mode>({ kind: 'list' })
+  useBackClose(open, onClose)
 
   useEffect(() => {
     if (!open) setMode({ kind: 'list' })

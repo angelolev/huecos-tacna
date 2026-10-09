@@ -115,6 +115,9 @@ Los puntos **no se guardan**: se calculan en `src/lib/points.ts` a partir de los
 | El admin lo marca como **falso** | −20 (y se pierden los demás puntos de ese reporte) |
 
 - **Ranking** (`/ranking`): "Este mes" (reportes y confirmaciones del mes) e "Histórico", por ciudad. Solo aparece quien eligió un **alias + emoji** (`profiles/{uid}`) y tiene puntos positivos. Nunca se muestra el nombre real.
+- **Campeón del mes** 👑: al terminar cada mes, quien más puntos sumó ese mes en su ciudad (con alias) gana una coronita y anillo dorado en su avatar, en el ranking, en "Mis reportes" y en la tabla de vecinos del admin. Se calcula (`monthlyChampions` en `src/lib/points.ts`), no se guarda: si el admin marca un reporte como falso, el campeón de ese mes se recalcula. El ranking del mes muestra al campeón del mes anterior y el histórico lista a todos los campeones.
+- **Perfil de vecino** (`/vecino/:uid`): al tocar a alguien en el ranking (o su alias en la tabla del admin) se ve su resumen: puntos, nivel, huecos reportados, reparados, apoyos recibidos, reportes confirmados, puesto en su ciudad y coronas. Solo existe para quien tiene alias; nunca muestra el nombre real ni dónde reportó.
+- **"¡Fuiste el campeón!"**: al abrir la app tras ganar un mes, aparece una celebración con confeti. Para no cargar datos de más en el inicio, se revisa una vez al mes por dispositivo.
 - **Niveles**: 🌱 Nuevo vecino (0) → 🙂 Vecino atento (10) → 🔦 Cazahuecos (100) → 🚧 Inspector de pistas (300) → 🏆 Huecazo de oro (800).
 - **Aviso al abrir la app**: "¡Ganaste X puntos!" cuando un reporte tuyo fue verificado, reparado o confirmado por otros.
 - **Admin**: el botón **"Es falso"** marca el reporte como `rechazado` (desaparece del mapa y resta puntos). "Eliminar definitivamente" sigue disponible, pero no resta puntos.

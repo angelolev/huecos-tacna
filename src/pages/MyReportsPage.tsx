@@ -13,6 +13,7 @@ import { GoogleButton } from '../components/GoogleButton'
 import { timeAgo } from '../lib/format'
 import { authErrorMessage } from '../lib/authErrors'
 import { useDocumentMeta } from '../hooks/useDocumentMeta'
+import { useBack } from '../hooks/useBack'
 
 export default function MyReportsPage() {
   const { user, linkGoogle } = useAuth()
@@ -22,6 +23,7 @@ export default function MyReportsPage() {
   const points = useMyPoints(user?.uid, allReports)
   useDocumentMeta({ title: 'Mis reportes', path: '/mis-reportes', noindex: true })
   const [linking, setLinking] = useState(false)
+  const back = useBack()
   const [linkMsg, setLinkMsg] = useState<string | null>(null)
 
   const fixed = reports.filter((r) => r.status === 'reparado').length
@@ -31,9 +33,9 @@ export default function MyReportsPage() {
     <div className="min-h-dvh bg-blobs pb-safe-4">
       <header className="sticky top-0 z-10 pt-safe">
         <div className="mx-auto flex max-w-lg items-center gap-3 px-4 py-3">
-          <Link to="/" className="icon-btn" aria-label="Volver">
+          <button onClick={back} className="icon-btn" aria-label="Volver">
             <ArrowLeft className="h-5 w-5" />
-          </Link>
+          </button>
           <h1 className="font-display text-2xl font-semibold text-ink">Mis reportes</h1>
         </div>
       </header>
@@ -46,6 +48,7 @@ export default function MyReportsPage() {
           level={points.level}
           next={points.next}
           progress={points.progress}
+          titles={points.titles}
         />
 
         {!loading && reports.length > 0 && (

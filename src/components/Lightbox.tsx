@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useBackClose } from '../hooks/useBack'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
@@ -30,6 +31,7 @@ export function Lightbox({
   onClose: () => void
 }) {
   const open = startIndex !== null && images.length > 0
+  useBackClose(open, onClose)
   const [[index, dir], setPage] = useState<[number, number]>([0, 0])
   const many = images.length > 1
 

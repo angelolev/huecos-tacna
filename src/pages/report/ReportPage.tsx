@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import { ArrowLeft, ArrowRight, Clock, X } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
@@ -7,6 +7,8 @@ import { useCities } from '../../context/CitiesContext'
 import { haptic } from '../../lib/fx'
 import { useGeoWatch } from '../../hooks/useGeoWatch'
 import { useDocumentMeta } from '../../hooks/useDocumentMeta'
+import { useBack } from '../../hooks/useBack'
+import { ghostDepth } from '../../lib/backStack'
 import { confirmReport, createReport, findNearby, hasConfirmed, secondsUntilCanReport, withTimeout } from '../../lib/reports'
 import type { LatLng, Severity } from '../../lib/types'
 import { PhotosStep } from './PhotosStep'
@@ -40,17 +42,35 @@ export default function ReportPage() {
     path: '/reportar',
   })
 
-  const [step, setStep] = useState<Step>(0)
-  const [dir, setDir] = useState(1)
-  const goTo = (next: Step) => {
-    setDir(next > step ? 1 : -1)
-    setStep(next)
-  }
   const [photos, setPhotos] = useState<PhotoItem[]>([])
   const [location, setLocation] = useState<LatLng | null>(null)
   const [address, setAddress] = useState<string | null>(null)
   const [severity, setSeverity] = useState<Severity>('mediano')
   const [note, setNote] = useState('')
+
+  // El paso va en el historial: el botón "atrás" del celular vuelve al paso anterior (sin perder
+  // fotos ni ubicación) en vez de salir del reporte.
+  const nav = useLocation()
+  const requested = (((nav.state as { paso?: number } | null)?.paso ?? 0) as Step)
+  // No se puede estar en un paso sin los datos de los anteriores (p. ej. tras recargar la página).
+  const step: Step = requested >= 1 && !photos.length ? 0 : requested === 2 && !location ? 1 : requested
+  useEffect(() => {
+    if (requested !== step) navigate(nav.pathname, { replace: true, state: { paso: step } })
+  }, [requested, step]) // eslint-disable-line react-hooks/exhaustive-deps
+  const goTo = (next: Step) => navigate(nav.pathname, { state: { paso: next } })
+  // Dirección de la animación según si se avanzó o se retrocedió.
+  const prevStep = useRef(step)
+  const dir = step >= prevStep.current ? 1 : -1
+  useEffect(() => {
+    prevStep.current = step
+  }, [step])
+  const leave = useBack('/')
+  // Al terminar, volvemos a la entrada del paso 1: así "atrás" desde la pantalla de éxito sale del
+  // reporte, sin pasar por los pasos ya enviados.
+  const finish = () => {
+    const depth = step + ghostDepth()
+    if (depth > 0) navigate(-depth)
+  }
 
   const [checking, setChecking] = useState(false)
   const [candidates, setCandidates] = useState<NearbyReport[]>([])
@@ -99,8 +119,6 @@ export default function ReportPage() {
     setError(null)
     setProgress(null)
     setDone(null)
-    setDir(-1)
-    setStep(0)
   }
 
   const confirmLocation = async () => {
@@ -125,6 +143,7 @@ export default function ReportPage() {
       if (r.reporterUid !== user.uid && !(await hasConfirmed(r.id, user.uid))) {
         await confirmReport(r.id, user.uid)
       }
+      finish()
       setCandidates([])
       setDone({ id: r.id, kind: 'confirmed', address: r.address, severity: r.severity })
     } catch (err) {
@@ -161,6 +180,7 @@ export default function ReportPage() {
         address,
         onProgress: setProgress,
       })
+      finish()
       setDone({ id, kind: 'created', address, severity })
     } catch (err) {
       console.error(err)
@@ -172,8 +192,8 @@ export default function ReportPage() {
 
   const back = () => {
     haptic(6)
-    if (step === 0) navigate('/')
-    else goTo((step - 1) as Step)
+    if (step === 0) leave()
+    else navigate(-1)
   }
 
   const stepContent =

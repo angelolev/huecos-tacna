@@ -36,7 +36,7 @@ export default function AdminPage() {
   // La vista va en la URL (?vista=metricas) para que sobreviva a recargar la página.
   const [params, setParams] = useSearchParams()
   const view: View = params.get('vista') === 'metricas' ? 'metricas' : 'mapa'
-  const setView = (v: View) => setParams(v === 'metricas' ? { vista: 'metricas' } : {}, { replace: true })
+  const setView = (v: View, push = false) => setParams(v === 'metricas' ? { vista: 'metricas' } : {}, { replace: !push })
 
   const [cityFilter, setCityFilter] = useState<string>('all')
   const [citiesOpen, setCitiesOpen] = useState(false)
@@ -108,7 +108,7 @@ export default function AdminPage() {
     setPeriod('all')
     setSearch('')
     setSelectedId(r.id)
-    setView('mapa')
+    setView('mapa', true)
   }
 
   return (

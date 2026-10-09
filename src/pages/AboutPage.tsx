@@ -5,6 +5,7 @@ import { ArrowLeft, Camera, ChevronDown, MapPin, PencilLine } from 'lucide-react
 import { PinMark } from '../components/Logo'
 import { listCityNames, useCities } from '../context/CitiesContext'
 import { useDocumentMeta } from '../hooks/useDocumentMeta'
+import { useBack } from '../hooks/useBack'
 import { STATUS_META } from '../lib/types'
 
 const STEPS = [
@@ -63,14 +64,15 @@ export default function AboutPage() {
     path: '/acerca',
     jsonLd,
   })
+  const back = useBack()
 
   return (
     <div className="min-h-dvh bg-blobs pb-safe-4">
       <header className="sticky top-0 z-10 pt-safe">
         <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-3">
-          <Link to="/" className="icon-btn" aria-label="Volver al mapa">
+          <button onClick={back} className="icon-btn" aria-label="Volver">
             <ArrowLeft className="h-5 w-5" />
-          </Link>
+          </button>
         </div>
       </header>
 
@@ -165,9 +167,9 @@ export default function AboutPage() {
             <Link to="/reportar" className="btn-primary">
               <Camera className="h-5 w-5" /> Reportar un hueco
             </Link>
-            <Link to="/" className="btn-soft">
+            <button onClick={back} className="btn-soft">
               <MapPin className="h-4 w-4" /> Ver el mapa
-            </Link>
+            </button>
           </div>
         </section>
       </main>
