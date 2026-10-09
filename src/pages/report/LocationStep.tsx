@@ -8,6 +8,7 @@ import { haptic } from '../../lib/fx'
 import { MAP_ID } from '../../components/MapsProvider'
 import { formatCoords } from '../../lib/geo'
 import { listCityNames, useCities } from '../../context/CitiesContext'
+import { useApproxLocation } from '../../hooks/useApproxLocation'
 import type { LatLng } from '../../lib/types'
 import type { GeoError, GeoWatch } from '../../hooks/useGeoWatch'
 
@@ -51,6 +52,8 @@ export function LocationStep({
 
   const { fix } = geo
   const { enabledCities, enabledCityFor, defaultCity } = useCities()
+  // Mientras llega el GPS, el mapa arranca en la ciudad aproximada (IP), no en una ciudad por defecto.
+  const approx = useApproxLocation()
   // Google Maps espera literales {lat, lng} sin campos extra.
   const gps = useMemo(() => (fix ? { lat: fix.lat, lng: fix.lng } : null), [fix])
   useEffect(() => {
@@ -92,7 +95,7 @@ export function LocationStep({
         className="absolute inset-0"
         mapId={MAP_ID}
         colorScheme={ColorScheme.LIGHT}
-        defaultCenter={startRef.current ?? gps ?? defaultCity.center}
+        defaultCenter={startRef.current ?? gps ?? (approx ? { lat: approx.lat, lng: approx.lng } : defaultCity.center)}
         defaultZoom={startRef.current ? 18 : fix ? zoomFor(fix.accuracy) : 14}
         gestureHandling="greedy"
         disableDefaultUI

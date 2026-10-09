@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext'
 import { useReports } from '../hooks/useReports'
 import { useCountUp } from '../hooks/useCountUp'
 import { useGeoWatch } from '../hooks/useGeoWatch'
+import { useApproxLocation } from '../hooks/useApproxLocation'
 import { useDocumentMeta } from '../hooks/useDocumentMeta'
 import { PointsToast } from '../components/PointsToast'
 import { ChampionCelebration } from '../components/ChampionCelebration'
@@ -17,9 +18,11 @@ import { ReportsMap } from '../components/ReportsMap'
 import { ReportSheet } from '../components/ReportSheet'
 import { AccountSheet } from '../components/AccountSheet'
 import { BottomSheet } from '../components/BottomSheet'
+import { CityRequestCard } from '../components/CityRequestCard'
 import { NEAR_RADIUS_M, boundsAround, boundsContain, metersBetween } from '../lib/geo'
 import { listCityNames, useCities } from '../context/CitiesContext'
 import { haptic } from '../lib/fx'
+import { PERU_CENTER } from '../lib/types'
 import type { City, LatLng, Report, ReportStatus } from '../lib/types'
 
 const spring = { type: 'spring', stiffness: 260, damping: 22 } as const
@@ -43,6 +46,23 @@ function paddingFor(map: google.maps.Map): google.maps.Padding {
   return { ...MAP_PADDING, top: Math.round(MAP_PADDING.top * k), bottom: Math.round(MAP_PADDING.bottom * k) }
 }
 
+/** Centro de la última ciudad activa donde estuvo la persona (no su posición exacta). */
+const LAST_CENTER_KEY = 'huecazo:last-city-center'
+
+/**
+ * Dónde arranca el mapa: la ciudad donde estuvo la última vez o, la primera vez, el Perú entero.
+ * Nunca una ciudad "por defecto": quien abre la app en otra ciudad no debe ver Tacna.
+ */
+function initialMapView(): { center: LatLng; zoom: number } {
+  try {
+    const c = JSON.parse(localStorage.getItem(LAST_CENTER_KEY) ?? 'null') as LatLng | null
+    if (c && Number.isFinite(c.lat) && Number.isFinite(c.lng)) return { center: { lat: c.lat, lng: c.lng }, zoom: 13 }
+  } catch {
+    /* sin almacenamiento */
+  }
+  return { center: PERU_CENTER, zoom: 5 }
+}
+
 export default function HomePage() {
   const { user } = useAuth()
   const { reports, loading, error } = useReports()
@@ -59,24 +79,44 @@ export default function HomePage() {
   const geo = useGeoWatch(true)
   const me = useMemo(() => (geo.fix ? { lat: geo.fix.lat, lng: geo.fix.lng } : null), [geo.fix])
   const geoFailed = !!geo.error && !me
+  // El GPS aún no responde (ni con error).
+  const gpsPending = !me && !geo.error
+  // Ubicación aproximada por la IP: llega antes que el GPS y sirve aunque no den permiso.
+  const approx = useApproxLocation()
+  const approxPoint = useMemo(() => (approx ? { lat: approx.lat, lng: approx.lng } : null), [approx])
+  // Dónde está la persona: el GPS o, mientras tanto (o sin permiso), su ciudad según la IP.
+  const where = me ?? approxPoint
+  const [mapStart] = useState(initialMapView)
 
   // Ciudad de contexto: todo el inicio (marcadores, contadores, "Toda la ciudad") muestra SOLO sus reportes.
   // - La ciudad donde está la persona; o la que eligió a mano en el selector.
-  // - Fuera de toda ciudad activa: ninguna (no se muestran reportes de otras ciudades).
-  // - Sin ubicación (o mientras se ubica): la ciudad por defecto.
-  const { enabledCities, enabledCityFor, defaultCity, cities } = useCities()
+  // - Fuera de toda ciudad activa: ninguna (no se muestran reportes de otras ciudades) y le ofrecemos
+  //   pedir que activen la suya.
+  // - Sin ninguna ubicación: ninguna. Nunca mandamos a nadie a una ciudad "por defecto".
+  const { enabledCities, enabledCityFor, cities } = useCities()
   const [pickedCityId, setPickedCityId] = useState<string | null>(null)
   const [cityPickerOpen, setCityPickerOpen] = useState(false)
-  const myCity = me ? enabledCityFor(me) : null
+  const myCity = where ? enabledCityFor(where) : null
   const pickedCity = cities.find((c) => c.id === pickedCityId) ?? null
-  const contextCity: City | null = pickedCity ?? (me ? myCity : defaultCity)
-  const viewCity = contextCity ?? defaultCity
-  const outsideCities = !!me && !myCity && !pickedCity
+  const contextCity: City | null = pickedCity ?? myCity
+  // La IP de los celulares a veces apunta a otra ciudad (p. ej. Lima): solo decimos "fuera de zona"
+  // con la IP si el GPS no está disponible.
+  const outsideCities = !!where && !myCity && !pickedCity && !gpsPending
 
-  // Sin ubicación no hay "cerca de mí": mostramos toda la ciudad.
+  // Recordamos la ciudad (no la posición) para abrir el mapa ahí la próxima vez.
   useEffect(() => {
-    if (view === 'near' && geoFailed) setView('city')
-  }, [view, geoFailed])
+    if (!me || !myCity) return
+    try {
+      localStorage.setItem(LAST_CENTER_KEY, JSON.stringify(myCity.center))
+    } catch {
+      /* sin almacenamiento */
+    }
+  }, [!!me, myCity?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Sin GPS no hay "cerca de mí": mostramos toda la ciudad (si sabemos cuál es).
+  useEffect(() => {
+    if (view === 'near' && geoFailed && contextCity) setView('city')
+  }, [view, geoFailed, contextCity])
   const selected = reports.find((r) => r.id === selectedId) ?? null
 
   // Al abrir un reporte (p. ej. un enlace compartido), el mapa queda en la ciudad de ese reporte,
@@ -180,6 +220,8 @@ export default function HomePage() {
     <div className="relative h-dvh w-full overflow-hidden bg-cream-100">
       <ReportsMap
         className="absolute inset-0"
+        defaultCenter={mapStart.center}
+        defaultZoom={mapStart.zoom}
         reports={visible}
         userLocation={me}
         selectedId={selectedId}
@@ -189,7 +231,7 @@ export default function HomePage() {
         }}
         onUserMove={() => setView(null)}
       >
-        <ViewController view={view} me={me} city={viewCity} reports={visible} />
+        <ViewController view={view} me={me} approx={approxPoint} geoFailed={geoFailed} city={contextCity} reports={visible} />
         {me && view === 'near' && (
           <Circle
             center={me}
@@ -275,41 +317,52 @@ export default function HomePage() {
           className="pointer-events-auto mx-auto mb-4 max-w-lg px-4"
         >
           <ViewSwitch view={view} onChange={chooseView} />
-          <ViewHint
-            view={view}
-            locating={!me && !geo.error}
-            geoFailed={geoFailed}
-            nearCount={nearCount}
-            loading={loading}
-            city={viewCity}
-            cityActive={cityActive}
-            outsideCities={outsideCities ? listCityNames(enabledCities) : null}
-          />
-          <div className="rounded-[32px] bg-white/95 p-4 shadow-float backdrop-blur">
-            <div className="flex items-center gap-3 px-1 pb-4">
-              <span className="animate-floaty text-3xl" aria-hidden>
-                🚧
-              </span>
-              <div>
-                <p className="font-display text-xl font-semibold leading-tight text-ink">¿Viste un hueco?</p>
-                <p className="text-sm text-ink-muted">Repórtalo en 30 segundos, sin registrarte.</p>
+          {outsideCities && where ? (
+            <CityRequestCard
+              point={where}
+              source={me ? 'gps' : 'ip'}
+              approx={approx}
+              activeCities={listCityNames(enabledCities)}
+              onShowCities={() => setCityPickerOpen(true)}
+            />
+          ) : (
+            <>
+              <ViewHint
+                view={view}
+                locating={gpsPending}
+                geoFailed={geoFailed}
+                nearCount={nearCount}
+                loading={loading}
+                city={contextCity}
+                cityActive={cityActive}
+              />
+              <div className="rounded-[32px] bg-white/95 p-4 shadow-float backdrop-blur">
+                <div className="flex items-center gap-3 px-1 pb-4">
+                  <span className="animate-floaty text-3xl" aria-hidden>
+                    🚧
+                  </span>
+                  <div>
+                    <p className="font-display text-xl font-semibold leading-tight text-ink">¿Viste un hueco?</p>
+                    <p className="text-sm text-ink-muted">Repórtalo en 30 segundos, sin registrarte.</p>
+                  </div>
+                </div>
+                <Link to="/reportar" onClick={() => haptic(15)} className="btn-primary w-full text-xl">
+                  <Camera className="h-6 w-6" /> Reportar un hueco
+                </Link>
+                <nav className="mt-3 flex items-center justify-center gap-1 text-sm font-semibold text-ink-soft">
+                  <Link to="/mis-reportes" className="flex items-center gap-1.5 rounded-full px-3 py-2 transition active:scale-95">
+                    <ListChecks className="h-4 w-4" /> Mis reportes
+                  </Link>
+                  <span className="text-ink-faint" aria-hidden>
+                    ·
+                  </span>
+                  <Link to="/acerca" className="flex items-center gap-1.5 rounded-full px-3 py-2 transition active:scale-95">
+                    <Info className="h-4 w-4" /> ¿Qué es Huecazo?
+                  </Link>
+                </nav>
               </div>
-            </div>
-            <Link to="/reportar" onClick={() => haptic(15)} className="btn-primary w-full text-xl">
-              <Camera className="h-6 w-6" /> Reportar un hueco
-            </Link>
-            <nav className="mt-3 flex items-center justify-center gap-1 text-sm font-semibold text-ink-soft">
-              <Link to="/mis-reportes" className="flex items-center gap-1.5 rounded-full px-3 py-2 transition active:scale-95">
-                <ListChecks className="h-4 w-4" /> Mis reportes
-              </Link>
-              <span className="text-ink-faint" aria-hidden>
-                ·
-              </span>
-              <Link to="/acerca" className="flex items-center gap-1.5 rounded-full px-3 py-2 transition active:scale-95">
-                <Info className="h-4 w-4" /> ¿Qué es Huecazo?
-              </Link>
-            </nav>
-          </div>
+            </>
+          )}
         </motion.div>
       </footer>
 
@@ -320,7 +373,7 @@ export default function HomePage() {
         cities={enabledCities}
         current={contextCity?.id ?? null}
         myCityId={myCity?.id ?? null}
-        hasLocation={!!me}
+        hasLocation={!!where}
         reports={reports}
         onPick={pickCity}
       />
@@ -453,9 +506,42 @@ function inCity(r: Report, city: City) {
   return r.cityId ? r.cityId === city.id : boundsContain(city.bounds, r)
 }
 
-function ViewController({ view, me, city, reports }: { view: View; me: LatLng | null; city: City; reports: Report[] }) {
+function ViewController({
+  view,
+  me,
+  approx,
+  geoFailed,
+  city,
+  reports,
+}: {
+  view: View
+  me: LatLng | null
+  /** Ubicación aproximada por IP. */
+  approx: LatLng | null
+  geoFailed: boolean
+  city: City | null
+  reports: Report[]
+}) {
   const map = useMap()
   const lastNear = useRef<LatLng | null>(null)
+  const approxShown = useRef(false)
+
+  // Sin GPS todavía: mostramos la ciudad aproximada (IP) si el GPS falla o tarda en responder.
+  // No de inmediato: la IP de los celulares a veces apunta a otra ciudad y el GPS llega en segundos.
+  useEffect(() => {
+    if (!map || me || !approx || view !== 'near' || approxShown.current) return
+    const show = () => {
+      approxShown.current = true
+      map.setCenter(approx)
+      map.setZoom(12)
+    }
+    if (geoFailed) {
+      show()
+      return
+    }
+    const timer = setTimeout(show, 2500)
+    return () => clearTimeout(timer)
+  }, [map, me, approx, view, geoFailed])
 
   useEffect(() => {
     if (!map) return
@@ -471,11 +557,11 @@ function ViewController({ view, me, city, reports }: { view: View; me: LatLng | 
 
   // "Toda la ciudad": la zona urbana más los reportes de esa ciudad que queden fuera de ella.
   useEffect(() => {
-    if (!map || view !== 'city') return
+    if (!map || view !== 'city' || !city) return
     const bounds = new google.maps.LatLngBounds(city.viewBounds)
     reports.filter((r) => inCity(r, city)).forEach((r) => bounds.extend({ lat: r.lat, lng: r.lng }))
     map.fitBounds(bounds, paddingFor(map))
-  }, [map, view, city.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [map, view, city?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return null
 }
@@ -524,22 +610,18 @@ function ViewHint({
   loading,
   city,
   cityActive,
-  outsideCities,
 }: {
   view: View
   locating: boolean
   geoFailed: boolean
   nearCount: number
   loading: boolean
-  city: City
+  city: City | null
   cityActive: number
-  /** Nombres de las ciudades activas, si la persona está fuera de todas. */
-  outsideCities: string | null
 }) {
   let text: string | null = null
-  if (outsideCities) text = `Huecazo aún no llega a tu zona. Por ahora estamos en ${outsideCities}.`
-  else if (geoFailed) text = 'Activa tu ubicación para ver los huecos cerca de ti.'
-  else if (view === 'city' && !loading)
+  if (geoFailed) text = 'Activa tu ubicación para ver los huecos cerca de ti.'
+  else if (view === 'city' && city && !loading)
     text = `${city.name}: ${cityActive} ${cityActive === 1 ? 'hueco por reparar' : 'huecos por reparar'}`
   else if (view === 'near' && locating) text = 'Buscando tu ubicación…'
   else if (view === 'near' && !loading)

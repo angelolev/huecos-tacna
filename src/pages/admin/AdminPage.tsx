@@ -7,6 +7,7 @@ import { useCities } from '../../context/CitiesContext'
 import { backfillReportCities, cityExists, saveCity } from '../../lib/cities'
 import { boundsContain } from '../../lib/geo'
 import { CitiesManager } from './CitiesManager'
+import { CityRequestsButton, CityRequestsPanel, useCityRequests } from './CityRequestsPanel'
 import { MetricsView } from './MetricsView'
 import { usePointsData } from '../../hooks/usePoints'
 import { POINTS } from '../../lib/points'
@@ -40,6 +41,23 @@ export default function AdminPage() {
 
   const [cityFilter, setCityFilter] = useState<string>('all')
   const [citiesOpen, setCitiesOpen] = useState(false)
+  // Nombre de la ciudad a crear desde un pedido de los vecinos (abre directo el editor).
+  const [createCityName, setCreateCityName] = useState<string | null>(null)
+
+  // Pedidos de los vecinos para activar su ciudad: el contador avisa de los nuevos.
+  const cityRequests = useCityRequests()
+  const [requestsOpen, setRequestsOpen] = useState(false)
+  // Lo visto antes de abrir el panel: así los pedidos nuevos siguen marcados mientras está abierto.
+  const [requestsSeenAt, setRequestsSeenAt] = useState(0)
+  const openRequests = () => {
+    setRequestsSeenAt(cityRequests.seenAt)
+    cityRequests.markSeen()
+    setRequestsOpen(true)
+  }
+  const closeRequests = () => {
+    cityRequests.markSeen()
+    setRequestsOpen(false)
+  }
   const cityOf = useCallback(
     (r: Report) => r.cityId ?? cities.find((c) => boundsContain(c.bounds, r))?.id ?? null,
     [cities],
@@ -123,6 +141,7 @@ export default function AdminPage() {
             <p className="font-display text-2xl font-semibold leading-none">Panel de control</p>
             <p className="truncate text-xs text-ink-muted">{user?.email}</p>
           </div>
+          <CityRequestsButton unseen={cityRequests.unseen} onClick={openRequests} />
           <button onClick={() => setCitiesOpen(true)} className="icon-btn" title="Ciudades" aria-label="Administrar ciudades">
             <Building2 className="h-4 w-4" />
           </button>
@@ -130,6 +149,24 @@ export default function AdminPage() {
             <LogOut className="h-4 w-4" />
           </button>
         </div>
+
+        {cityRequests.unseen > 0 && (
+          <div className="px-5 pt-3">
+            <button
+              onClick={openRequests}
+              className="flex w-full items-center gap-3 rounded-[20px] bg-butter-soft px-4 py-2.5 text-left text-sm text-butter-deep transition active:scale-[.98]"
+            >
+              <span className="text-xl" aria-hidden>
+                🙋
+              </span>
+              <span className="flex-1">
+                <b>{cityRequests.unseen === 1 ? '1 pedido nuevo' : `${cityRequests.unseen} pedidos nuevos`}</b> para activar
+                ciudades
+              </span>
+              <span className="font-semibold underline">Ver</span>
+            </button>
+          </div>
+        )}
 
         <div className="px-5 pt-3">
           <ViewTabs view={view} onChange={setView} full />
@@ -273,7 +310,28 @@ export default function AdminPage() {
         </ReportsMap>
         <Legend />
         {selected && <AdminDetail key={selected.id} report={selected} onClose={() => setSelectedId(null)} />}
-        <CitiesManager open={citiesOpen} onClose={() => setCitiesOpen(false)} reports={reports} />
+        <CitiesManager
+          open={citiesOpen}
+          onClose={() => {
+            setCitiesOpen(false)
+            setCreateCityName(null)
+          }}
+          reports={reports}
+          createName={createCityName}
+        />
+        <CityRequestsPanel
+          open={requestsOpen}
+          onClose={closeRequests}
+          requests={cityRequests.requests}
+          loading={cityRequests.loading}
+          error={cityRequests.error}
+          seenAt={requestsSeenAt}
+          onCreateCity={(name) => {
+            closeRequests()
+            setCreateCityName(name)
+            setCitiesOpen(true)
+          }}
+        />
       </section>
 
       {/* Métricas: capa encima del mapa (el mapa sigue montado para no recargarlo al volver). */}
@@ -292,6 +350,7 @@ export default function AdminPage() {
               <div className="order-last w-full sm:order-none sm:w-64">
                 <CitySelect cities={cities} value={cityFilter} onChange={setCityFilter} reports={reports} cityOf={cityOf} />
               </div>
+              <CityRequestsButton unseen={cityRequests.unseen} onClick={openRequests} />
               <button onClick={() => setCitiesOpen(true)} className="icon-btn" title="Ciudades" aria-label="Administrar ciudades">
                 <Building2 className="h-4 w-4" />
               </button>
