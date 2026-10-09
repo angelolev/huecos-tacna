@@ -11,6 +11,7 @@ import { useDocumentMeta } from '../hooks/useDocumentMeta'
 import { PointsToast } from '../components/PointsToast'
 import { ChampionCelebration } from '../components/ChampionCelebration'
 import { pointEvents } from '../lib/points'
+import { ensureProfile } from '../lib/profiles'
 import { Logo } from '../components/Logo'
 import { ReportsMap } from '../components/ReportsMap'
 import { ReportSheet } from '../components/ReportSheet'
@@ -104,6 +105,27 @@ export default function HomePage() {
   const fixed = cityReports.filter((r) => r.status === 'reparado').length
   // Para el aviso "¡Ganaste puntos!" bastan los reportes (verificado, reparado, confirmaciones, rechazado).
   const events = useMemo(() => pointEvents(reports, []), [reports])
+
+  // Quien ya tenía puntos antes de que el alias fuera automático lo recibe al abrir la app
+  // (una sola vez por dispositivo).
+  useEffect(() => {
+    if (!user || !events.some((e) => e.uid === user.uid && e.points > 0)) return
+    const key = `huecazo:alias:${user.uid}`
+    try {
+      if (localStorage.getItem(key)) return
+    } catch {
+      /* sin almacenamiento: ensureProfile solo lee si ya existe */
+    }
+    ensureProfile(user.uid)
+      .then(() => {
+        try {
+          localStorage.setItem(key, '1')
+        } catch {
+          /* volveremos a revisar la próxima vez */
+        }
+      })
+      .catch((e) => console.error('No se pudo asignar el alias', e))
+  }, [user, events])
   const cityActive = active
   const nearCount = useMemo(
     () => (me ? cityReports.filter((r) => isActive(r) && metersBetween(me, r) <= NEAR_RADIUS_M).length : 0),

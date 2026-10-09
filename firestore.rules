@@ -60,10 +60,11 @@ service cloud.firestore {
           && p.updatedAt == request.time;
       }
 
+      // El alias se asigna solo (al azar) la primera vez que la persona gana puntos y no se puede
+      // cambiar ni quitar: solo crear. El admin puede borrar uno (la persona recibe otro al azar).
       allow read: if true;
-      allow create, update: if signedIn() && request.auth.uid == uid && validProfile();
-      // El dueño puede salir del ranking; el admin puede quitar un alias ofensivo.
-      allow delete: if (signedIn() && request.auth.uid == uid) || isAdmin();
+      allow create: if signedIn() && request.auth.uid == uid && validProfile();
+      allow delete: if isAdmin();
     }
 
     // Las confirmaciones (solo la fecha; el id es el uid anónimo) son públicas para calcular los puntos.

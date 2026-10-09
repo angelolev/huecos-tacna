@@ -14,7 +14,7 @@ import type { User } from 'firebase/auth'
 import { FirebaseError } from 'firebase/app'
 import { doc, getDoc } from 'firebase/firestore'
 import { auth, db } from '../lib/firebase'
-import { claimGoogleBonus } from '../lib/profiles'
+import { claimGoogleBonus, ensureProfile } from '../lib/profiles'
 import { completeTransfer, prepareTransfer } from '../lib/transfer'
 
 interface AuthValue {
@@ -30,6 +30,10 @@ interface AuthValue {
 }
 
 const AuthContext = createContext<AuthValue | null>(null)
+
+// Mientras se traspasan los reportes de una sesión anónima a una cuenta existente, no asignamos
+// alias nuevo: la cuenta debe heredar el alias de la sesión anónima.
+let transferring = false
 
 const provider = new GoogleAuthProvider()
 provider.setCustomParameters({ prompt: 'select_account' })
@@ -103,6 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user
       .getIdToken(true)
       .then(() => claimGoogleBonus(user.uid))
+      .then(() => (transferring ? undefined : ensureProfile(user.uid)))
       .catch((e) => console.error('No se pudo registrar el bono de Google', e))
   }, [user, version])
 
@@ -123,9 +128,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Si no se puede preparar el traspaso, NO cambiamos de cuenta: la sesión anónima
           // (con sus reportes) se conserva y la persona puede reintentar.
           const transfer = current.isAnonymous ? await prepareTransfer(current.uid) : null
-          const { user: google } = await signInWithCredential(auth, cred)
-          if (transfer) {
-            await completeTransfer(transfer, google.uid).catch((e) => console.error('No se pudieron traspasar los reportes', e))
+          transferring = true
+          try {
+            const { user: google } = await signInWithCredential(auth, cred)
+            if (transfer) {
+              await completeTransfer(transfer, google.uid).catch((e) => console.error('No se pudieron traspasar los reportes', e))
+            }
+            await ensureProfile(google.uid).catch((e) => console.error('No se pudo asignar el alias', e))
+          } finally {
+            transferring = false
           }
           return 'switched' as const
         }

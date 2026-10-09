@@ -8,7 +8,6 @@ import { useReports } from '../hooks/useReports'
 import { usePointsData } from '../hooks/usePoints'
 import { useDocumentMeta } from '../hooks/useDocumentMeta'
 import { useBack } from '../hooks/useBack'
-import { AliasSheet } from '../components/AliasSheet'
 import { PointsHelpSheet } from '../components/PointsHelpSheet'
 import { CHAMPION_RING, ChampionChip, CrownBadge, championMonth } from '../components/ChampionBadge'
 import { levelFor, monthlyChampions, ranking, titlesByUid, totalFor } from '../lib/points'
@@ -28,7 +27,6 @@ export default function RankingPage() {
   const { cities, enabledCities, defaultCity } = useCities()
   const [period, setPeriod] = useState<Period>('month')
   const [cityId, setCityId] = useState<string>(defaultCity.id)
-  const [aliasOpen, setAliasOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
   const loading = reportsLoading || pointsLoading
   const back = useBack()
@@ -51,7 +49,7 @@ export default function RankingPage() {
     () => new Map(ranking(events, profiles, { period: 'all' }).map((r) => [r.uid, r.points])),
     [events, profiles],
   )
-  // Solo aparecen quienes eligieron alias y tienen puntos positivos.
+  // Solo aparecen quienes tienen alias (se asigna solo al ganar puntos) y puntos positivos.
   const visible = all.filter((r) => r.profile && r.points > 0)
   const podium = visible.slice(0, 3)
   const rest = visible.slice(3, 50)
@@ -127,7 +125,7 @@ export default function RankingPage() {
               🏆
             </span>
             <p className="mt-4 font-display text-2xl font-semibold">¡El podio está libre!</p>
-            <p className="mt-2 max-w-xs text-sm text-ink-muted">Reporta un hueco y elige tu alias para ser el primero del ranking.</p>
+            <p className="mt-2 max-w-xs text-sm text-ink-muted">Reporta un hueco para ser el primero del ranking.</p>
             <Link to="/reportar" className="btn-primary mt-6">
               Reportar un hueco
             </Link>
@@ -180,18 +178,20 @@ export default function RankingPage() {
               ) : (
                 <>
                   <p className="font-semibold">Tienes {me?.points ?? 0} pts</p>
-                  <p className="text-xs text-white/70">Elige un alias para aparecer en el ranking</p>
+                  <p className="text-xs text-white/70">Reporta un hueco para aparecer en el ranking</p>
                 </>
               )}
             </div>
-            <button onClick={() => setAliasOpen(true)} className="shrink-0 rounded-full bg-coral px-4 py-2 text-sm font-bold text-ink transition active:scale-95">
-              {myProfile ? 'Editar' : 'Elegir alias'}
-            </button>
+            <Link
+              to={myProfile && user ? `/vecino/${user.uid}` : '/reportar'}
+              className="shrink-0 rounded-full bg-coral px-4 py-2 text-sm font-bold text-ink transition active:scale-95"
+            >
+              {myProfile ? 'Mi perfil' : 'Reportar'}
+            </Link>
           </div>
         </div>
       </div>
 
-      <AliasSheet open={aliasOpen} onClose={() => setAliasOpen(false)} profile={myProfile} />
       <PointsHelpSheet open={helpOpen} onClose={() => setHelpOpen(false)} />
     </div>
   )

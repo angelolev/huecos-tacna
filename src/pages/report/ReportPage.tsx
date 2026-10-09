@@ -10,7 +10,8 @@ import { useDocumentMeta } from '../../hooks/useDocumentMeta'
 import { useBack } from '../../hooks/useBack'
 import { ghostDepth } from '../../lib/backStack'
 import { confirmReport, createReport, findNearby, hasConfirmed, secondsUntilCanReport, withTimeout } from '../../lib/reports'
-import type { LatLng, Severity } from '../../lib/types'
+import type { LatLng, Profile, Severity } from '../../lib/types'
+import { ensureProfile } from '../../lib/profiles'
 import { PhotosStep } from './PhotosStep'
 import type { PhotoItem } from './PhotosStep'
 import { LocationStep } from './LocationStep'
@@ -76,7 +77,18 @@ export default function ReportPage() {
   const [candidates, setCandidates] = useState<NearbyReport[]>([])
   const [progress, setProgress] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [done, setDone] = useState<{ id: string; kind: 'created' | 'confirmed'; address: string | null; severity: Severity } | null>(null)
+  const [done, setDone] = useState<{
+    id: string
+    kind: 'created' | 'confirmed'
+    address: string | null
+    severity: Severity
+    profile?: Profile
+  } | null>(null)
+  // Al ganar sus primeros puntos, la persona recibe su alias del ranking (automático).
+  const assignAlias = (uid: string) =>
+    ensureProfile(uid)
+      .then((profile) => setDone((d) => (d ? { ...d, profile } : d)))
+      .catch((e) => console.error('No se pudo asignar el alias', e))
   const [wait, setWait] = useState(0)
 
   // Si el permiso de ubicación ya está concedido, encendemos el GPS desde el paso de fotos
@@ -146,6 +158,7 @@ export default function ReportPage() {
       finish()
       setCandidates([])
       setDone({ id: r.id, kind: 'confirmed', address: r.address, severity: r.severity })
+      assignAlias(user.uid)
     } catch (err) {
       console.error(err)
       setCandidates([])
@@ -182,6 +195,7 @@ export default function ReportPage() {
       })
       finish()
       setDone({ id, kind: 'created', address, severity })
+      assignAlias(user.uid)
     } catch (err) {
       console.error(err)
       setError('No se pudo enviar el reporte. Revisa tu conexión e intenta de nuevo.')

@@ -13,7 +13,7 @@ import { levelFor, monthlyChampions, neighborSummary } from '../lib/points'
 
 const sinceFmt = new Intl.DateTimeFormat('es-PE', { month: 'long', year: 'numeric' })
 
-/** Perfil público de un vecino: solo quienes eligieron alias. Nunca muestra su nombre real ni dónde reportó. */
+/** Perfil público de un vecino: solo quienes tienen alias. Nunca muestra su nombre real ni dónde reportó. */
 export default function NeighborPage() {
   const { uid = '' } = useParams()
   const { user } = useAuth()
@@ -55,7 +55,7 @@ export default function NeighborPage() {
               🙈
             </span>
             <p className="mt-4 font-display text-2xl font-semibold">Perfil no disponible</p>
-            <p className="mt-2 max-w-xs text-sm text-ink-muted">Este vecino no tiene un alias público o salió del ranking.</p>
+            <p className="mt-2 max-w-xs text-sm text-ink-muted">Este vecino aún no aparece en el ranking.</p>
             <Link to="/ranking" className="btn-primary mt-6">
               Ver ranking
             </Link>

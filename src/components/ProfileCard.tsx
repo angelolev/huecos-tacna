@@ -1,12 +1,11 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'motion/react'
-import { ChevronRight, CircleHelp, Pencil, Trophy } from 'lucide-react'
+import { ChevronRight, CircleHelp, Trophy } from 'lucide-react'
 import { useCountUp } from '../hooks/useCountUp'
 import type { Champion, Level } from '../lib/points'
 import { CHAMPION_RING, ChampionChip, CrownBadge } from './ChampionBadge'
 import type { Profile } from '../lib/types'
-import { AliasSheet } from './AliasSheet'
 import { PointsHelpSheet } from './PointsHelpSheet'
 
 /** Puntos, nivel y alias de la persona (en "Mis reportes"). */
@@ -27,7 +26,6 @@ export function ProfileCard({
   next: Level | null
   progress: number
 }) {
-  const [aliasOpen, setAliasOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
   const shown = useCountUp(total)
 
@@ -39,26 +37,25 @@ export function ProfileCard({
       aria-label="Tus puntos"
     >
       <div className="flex items-center gap-3 bg-gradient-to-br from-butter-soft via-cream-50 to-lavender-soft p-4">
-        <button
-          onClick={() => setAliasOpen(true)}
-          className={`relative grid h-16 w-16 shrink-0 place-items-center rounded-full bg-white text-4xl shadow-soft transition active:scale-95 ${
+        <span
+          className={`relative grid h-16 w-16 shrink-0 place-items-center rounded-full bg-white text-4xl shadow-soft ${
             titles.length ? CHAMPION_RING : ''
           }`}
-          aria-label="Editar alias"
+          aria-hidden
         >
           {profile?.emoji ?? level.emoji}
           <CrownBadge titles={titles} />
-          <span className="absolute -bottom-1 -right-1 grid h-6 w-6 place-items-center rounded-full bg-ink text-white">
-            <Pencil className="h-3 w-3" />
-          </span>
-        </button>
+        </span>
         <div className="min-w-0 flex-1">
           {profile ? (
-            <p className={`truncate font-display text-xl font-semibold ${titles.length ? 'text-butter-deep' : ''}`}>{profile.alias}</p>
+            <Link
+              to={`/vecino/${profile.uid}`}
+              className={`block truncate font-display text-xl font-semibold ${titles.length ? 'text-butter-deep' : ''}`}
+            >
+              {profile.alias}
+            </Link>
           ) : (
-            <button onClick={() => setAliasOpen(true)} className="font-display text-lg font-semibold text-coral-deep underline-offset-2 hover:underline">
-              Elige tu alias para el ranking
-            </button>
+            <p className="text-sm font-semibold text-ink-soft">Reporta tu primer hueco para aparecer en el ranking</p>
           )}
           <p className="text-sm font-semibold text-ink-soft">
             {level.emoji} {level.name}
@@ -102,7 +99,6 @@ export function ProfileCard({
         </div>
       </div>
 
-      <AliasSheet open={aliasOpen} onClose={() => setAliasOpen(false)} profile={profile} />
       <PointsHelpSheet open={helpOpen} onClose={() => setHelpOpen(false)} />
     </motion.section>
   )

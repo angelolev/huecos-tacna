@@ -3,6 +3,7 @@ import { motion } from 'motion/react'
 import { Hand, PartyPopper } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { confirmReport, hasConfirmed } from '../lib/reports'
+import { ensureProfile } from '../lib/profiles'
 import { haptic } from '../lib/fx'
 import { POINTS } from '../lib/points'
 import type { Report } from '../lib/types'
@@ -61,6 +62,7 @@ function ConfirmButton({ report }: { report: Report }) {
       await confirmReport(report.id, user.uid)
       haptic([10, 40, 20])
       setState('done')
+      ensureProfile(user.uid).catch((e) => console.error('No se pudo asignar el alias', e))
     } catch (err) {
       console.error(err)
       setState('error')

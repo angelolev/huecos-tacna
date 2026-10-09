@@ -7,7 +7,7 @@ import { GoogleButton } from '../../components/GoogleButton'
 import { confetti, haptic } from '../../lib/fx'
 import { ShareButton } from '../../components/ShareButton'
 import { POINTS } from '../../lib/points'
-import type { Severity } from '../../lib/types'
+import type { Profile, Severity } from '../../lib/types'
 import { authErrorMessage } from '../../lib/authErrors'
 
 export function SuccessView({
@@ -15,7 +15,7 @@ export function SuccessView({
   kind,
   onAnother,
 }: {
-  report: { id: string; address: string | null; severity: Severity }
+  report: { id: string; address: string | null; severity: Severity; profile?: Profile }
   kind: 'created' | 'confirmed'
   onAnother: () => void
 }) {
@@ -65,6 +65,14 @@ export function SuccessView({
       >
         ⭐ +{kind === 'created' ? POINTS.report : POINTS.confirmGiven} puntos
       </motion.span>
+      {report.profile && (
+        <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.7 }} className="mt-2 text-sm text-ink-muted">
+          Apareces en el ranking como{' '}
+          <Link to={`/vecino/${report.profile.uid}`} className="font-semibold text-ink underline-offset-2 hover:underline">
+            {report.profile.emoji} {report.profile.alias}
+          </Link>
+        </motion.p>
+      )}
       <motion.p
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}

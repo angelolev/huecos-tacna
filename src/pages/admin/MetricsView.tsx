@@ -246,7 +246,7 @@ export function MetricsView({ cityReports, reports, cityId, cityOf, cityName, po
           </>
         )}
         <p className="text-xs text-ink-muted">
-          Solo se cuentan vecinos que reportaron, confirmaron, eligieron alias o entraron con Google: quien solo miró el mapa no deja
+          Solo se cuentan vecinos que reportaron, confirmaron, tienen alias o entraron con Google: quien solo miró el mapa no deja
           rastro. Nunca se muestran nombres reales ni correos.
         </p>
       </section>
