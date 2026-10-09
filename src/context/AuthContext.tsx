@@ -15,6 +15,7 @@ import { FirebaseError } from 'firebase/app'
 import { doc, getDoc } from 'firebase/firestore'
 import { auth, db } from '../lib/firebase'
 import { claimGoogleBonus, ensureProfile } from '../lib/profiles'
+import { trackEvent } from '../lib/analytics'
 import { completeTransfer, prepareTransfer } from '../lib/transfer'
 
 interface AuthValue {
@@ -118,6 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { user: linked } = await linkWithPopup(current, provider)
       await syncGoogleProfile(linked).catch((e) => console.error('No se pudo copiar el perfil de Google', e))
       setVersion((v) => v + 1)
+      trackEvent('google_linked', { result: 'linked' })
       return 'linked' as const
     } catch (err) {
       // La cuenta de Google ya existe (p. ej. el admin u otro celular): iniciamos sesión con ella
@@ -138,6 +140,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           } finally {
             transferring = false
           }
+          trackEvent('google_linked', { result: 'switched' })
           return 'switched' as const
         }
       }

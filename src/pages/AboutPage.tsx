@@ -34,6 +34,10 @@ function faqs(cities: string) {
       a: 'Los reportes (foto, ubicación y nota) se muestran en el mapa público para que todos los vecinos los vean. No mostramos tu nombre ni tu correo.',
     },
     {
+      q: '¿Huecazo mide las visitas?',
+      a: 'Sí. Usamos Google Analytics para contar visitas de forma agregada (por ejemplo, desde qué ciudades se conectan los vecinos) y así mejorar Huecazo. No lo usamos para publicidad ni para saber quién eres.',
+    },
+    {
       q: '¿Cómo sé si ya lo repararon?',
       a: 'Cada reporte pasa por tres estados: reportado, verificado y reparado. Puedes seguirlos en "Mis reportes".',
     },

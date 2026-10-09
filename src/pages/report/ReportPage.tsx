@@ -12,6 +12,7 @@ import { ghostDepth } from '../../lib/backStack'
 import { confirmReport, createReport, findNearby, hasConfirmed, secondsUntilCanReport, withTimeout } from '../../lib/reports'
 import type { LatLng, Profile, Severity } from '../../lib/types'
 import { ensureProfile } from '../../lib/profiles'
+import { trackEvent } from '../../lib/analytics'
 import { PhotosStep } from './PhotosStep'
 import type { PhotoItem } from './PhotosStep'
 import { LocationStep } from './LocationStep'
@@ -154,6 +155,7 @@ export default function ReportPage() {
     try {
       if (r.reporterUid !== user.uid && !(await hasConfirmed(r.id, user.uid))) {
         await confirmReport(r.id, user.uid)
+        trackEvent('report_confirmed', { source: 'al_reportar' })
       }
       finish()
       setCandidates([])
@@ -195,6 +197,7 @@ export default function ReportPage() {
       })
       finish()
       setDone({ id, kind: 'created', address, severity })
+      trackEvent('report_created', { city: city.id, severity })
       assignAlias(user.uid)
     } catch (err) {
       console.error(err)

@@ -7,6 +7,7 @@ import { MAPS_API_KEY, MapsProvider } from './components/MapsProvider'
 import { SetupScreen } from './components/SetupScreen'
 import { isFirebaseConfigured } from './lib/firebase'
 import { lazyWithReload, onUpdate, updatePending } from './lib/updates'
+import { trackPage } from './lib/analytics'
 import HomePage from './pages/HomePage'
 
 const ReportPage = lazyWithReload(() => import('./pages/report/ReportPage'))
@@ -57,6 +58,13 @@ function UpdateWatcher() {
   return null
 }
 
+/** Una visita en Analytics por cada pantalla (no por hojas o parámetros como ?r=). */
+function PageTracker() {
+  const { pathname } = useLocation()
+  useEffect(() => trackPage(pathname), [pathname])
+  return null
+}
+
 function AppRoutes() {
   const { loading } = useAuth()
   if (loading) return <Splash />
@@ -88,6 +96,7 @@ export default function App() {
         <MapsProvider>
           <BrowserRouter>
             <UpdateWatcher />
+            <PageTracker />
             <AppRoutes />
           </BrowserRouter>
         </MapsProvider>
