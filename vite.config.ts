@@ -10,6 +10,9 @@ export default defineConfig(({ mode }) => ({
     mode === 'phone' && basicSsl(),
     VitePWA({
       registerType: 'autoUpdate',
+      // Lo registramos nosotros (src/lib/updates.ts) para recargar con la versión nueva sin
+      // interrumpir un reporte a medias.
+      injectRegister: false,
       includeAssets: ['favicon.svg', 'favicon.ico', 'apple-touch-icon.png'],
       manifest: {
         name: 'Huecazo',
@@ -28,6 +31,9 @@ export default defineConfig(({ mode }) => ({
         ],
       },
       workbox: {
+        // La versión nueva toma el control apenas se instala; la recarga la decide src/lib/updates.ts.
+        skipWaiting: true,
+        clientsClaim: true,
         // /api: funciones de Vercel; /h/:id se resuelve en la app tras cargar.
         navigateFallbackDenylist: [/^\/__/, /^\/api\//],
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],

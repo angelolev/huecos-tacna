@@ -1,19 +1,20 @@
-import { lazy, Suspense } from 'react'
-import { BrowserRouter, Navigate, Route, Routes, useParams } from 'react-router-dom'
+import { Suspense, useEffect, useRef, useState } from 'react'
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom'
 import { LoaderCircle } from 'lucide-react'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { CitiesProvider } from './context/CitiesContext'
 import { MAPS_API_KEY, MapsProvider } from './components/MapsProvider'
 import { SetupScreen } from './components/SetupScreen'
 import { isFirebaseConfigured } from './lib/firebase'
+import { lazyWithReload, onUpdate, updatePending } from './lib/updates'
 import HomePage from './pages/HomePage'
 
-const ReportPage = lazy(() => import('./pages/report/ReportPage'))
-const MyReportsPage = lazy(() => import('./pages/MyReportsPage'))
-const AdminGate = lazy(() => import('./pages/admin/AdminGate'))
-const AboutPage = lazy(() => import('./pages/AboutPage'))
-const RankingPage = lazy(() => import('./pages/RankingPage'))
-const NeighborPage = lazy(() => import('./pages/NeighborPage'))
+const ReportPage = lazyWithReload(() => import('./pages/report/ReportPage'))
+const MyReportsPage = lazyWithReload(() => import('./pages/MyReportsPage'))
+const AdminGate = lazyWithReload(() => import('./pages/admin/AdminGate'))
+const AboutPage = lazyWithReload(() => import('./pages/AboutPage'))
+const RankingPage = lazyWithReload(() => import('./pages/RankingPage'))
+const NeighborPage = lazyWithReload(() => import('./pages/NeighborPage'))
 
 function Splash() {
   return (
@@ -26,6 +27,34 @@ function Splash() {
 function ShareRedirect() {
   const { id } = useParams()
   return <Navigate to={id ? `/?r=${encodeURIComponent(id)}` : '/'} replace />
+}
+
+/**
+ * Con una versión nueva instalada, recarga en un momento que no moleste: al cambiar de pantalla
+ * (la nueva ya abre actualizada) o al dejar la app en segundo plano. Nunca en medio de un reporte.
+ */
+function UpdateWatcher() {
+  const { pathname } = useLocation()
+  const [pending, setPending] = useState(updatePending)
+  const lastPath = useRef(pathname)
+
+  useEffect(() => onUpdate(() => setPending(true)), [])
+
+  useEffect(() => {
+    if (pending && pathname !== lastPath.current) window.location.reload()
+    lastPath.current = pathname
+  }, [pending, pathname])
+
+  useEffect(() => {
+    if (!pending) return
+    const onHide = () => {
+      if (document.visibilityState === 'hidden' && window.location.pathname !== '/reportar') window.location.reload()
+    }
+    document.addEventListener('visibilitychange', onHide)
+    return () => document.removeEventListener('visibilitychange', onHide)
+  }, [pending])
+
+  return null
 }
 
 function AppRoutes() {
@@ -58,6 +87,7 @@ export default function App() {
       <CitiesProvider>
         <MapsProvider>
           <BrowserRouter>
+            <UpdateWatcher />
             <AppRoutes />
           </BrowserRouter>
         </MapsProvider>
