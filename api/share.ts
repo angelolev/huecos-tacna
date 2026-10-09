@@ -46,8 +46,18 @@ async function getReport(id: string) {
     severity: f.severity?.stringValue ?? 'mediano',
     status: f.status?.stringValue ?? 'pendiente',
     confirmations: Number(f.confirmations?.integerValue ?? 0),
+    cityId: f.cityId?.stringValue ?? null,
     photo,
   }
+}
+
+/** Nombre de la ciudad del reporte, para cuando no tiene dirección. */
+async function getCityName(cityId: string | null) {
+  if (!cityId || !/^[a-z0-9-]{1,60}$/.test(cityId)) return null
+  const res = await fetch(`https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/cities/${cityId}`)
+  if (!res.ok) return null
+  const doc = (await res.json()) as { fields?: Record<string, FsValue> }
+  return doc.fields?.name?.stringValue ?? null
 }
 
 export async function GET(request: Request) {
@@ -65,7 +75,7 @@ export async function GET(request: Request) {
   if (!report || report.status === 'rechazado') return html(shell, 'public, max-age=0, s-maxage=300')
 
   const severity = SEVERITY[report.severity] ?? report.severity
-  const place = report.address ?? 'Tacna'
+  const place = report.address ?? (await getCityName(report.cityId).catch(() => null)) ?? 'la pista'
   const title = `🚧 Hueco ${severity} en ${place}`
   const supporters =
     report.confirmations > 0

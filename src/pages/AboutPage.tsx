@@ -46,7 +46,7 @@ function faqs(cities: string) {
 
 export default function AboutPage() {
   const { enabledCities } = useCities()
-  const cities = listCityNames(enabledCities) || 'Tacna'
+  const cities = listCityNames(enabledCities) || 'varias ciudades del Perú'
   const items = useMemo(() => faqs(cities), [cities])
 
   const jsonLd = useMemo(

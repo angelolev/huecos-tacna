@@ -1,9 +1,9 @@
 import { useEffect } from 'react'
 
 const SITE = 'https://huecazo.com'
-const DEFAULT_TITLE = 'Huecazo · Reporta huecos en las pistas de Tacna'
+const DEFAULT_TITLE = 'Huecazo · Reporta huecos en las pistas de todo el Perú'
 const DEFAULT_DESCRIPTION =
-  'Mapa ciudadano de huecos en las pistas. Toma una foto, marca la ubicación y repórtalo en 30 segundos, sin registrarte. Ya disponible en Tacna.'
+  'Mapa ciudadano de huecos en las pistas de todo el Perú. Toma una foto, marca la ubicación y repórtalo en 30 segundos, sin registrarte.'
 
 interface Meta {
   title?: string

@@ -137,7 +137,7 @@ Pestaña **Métricas** en `/admin` (`/admin?vista=metricas`), filtrable por ciud
 
 ## SEO y redes
 
-- **Metadatos base** en `index.html`: título y descripción con foco local ("huecos en las pistas de Tacna"), Open Graph y Twitter con `public/og-image.png` (1200×630), y datos estructurados JSON-LD (`WebSite` y `WebApplication`).
+- **Metadatos base** en `index.html`: título y descripción para todo el país ("huecos en las pistas de todo el Perú", sin listar ciudades para no tener que actualizarlo al abrir una nueva), Open Graph y Twitter con `public/og-image.png` (1200×630), y datos estructurados JSON-LD (`WebSite` y `WebApplication`).
 - **Metadatos por página**: `useDocumentMeta()` (`src/hooks/useDocumentMeta.ts`) ajusta título, descripción, URL canónica y robots. `/admin` y `/mis-reportes` llevan `noindex`, también como cabecera `X-Robots-Tag` en `vercel.json`.
 - **Contenido indexable**: `/acerca` ("¿Qué es Huecazo?") con pasos, estados y preguntas frecuentes, más JSON-LD `FAQPage`.
 - **`robots.txt` y `sitemap.xml`** en `public/`. Si agregas páginas públicas, añádelas al sitemap.
