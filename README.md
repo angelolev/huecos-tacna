@@ -13,6 +13,7 @@ Empezó en Tacna tras las lluvias. Está lista para funcionar en varias ciudades
 - "Sigue ahí": cualquier vecino puede confirmar un reporte (1 vez por usuario).
 - **Login híbrido**: anónimo e invisible por defecto (Firebase Anonymous Auth) y opción de **vincular Google** sin perder los reportes.
 - Mis reportes (`/mis-reportes`).
+- **Siempre en su ubicación**: el mapa se abre donde está la persona (GPS o, si no da permiso, su ciudad aproximada por IP), nunca en una ciudad por defecto. Si su ciudad aún no está activa, se le dice y puede **pedir que la activen**.
 - Instalable como app (PWA).
 
 **Admin** (`/admin`)
@@ -20,6 +21,7 @@ Empezó en Tacna tras las lluvias. Está lista para funcionar en varias ciudades
 - Mapa con los reportes coloreados por estado, filtros (estado, severidad, periodo, búsqueda) y orden (recientes, más confirmados, más graves).
 - Cambiar el estado (pendiente → verificado → reparado) y eliminar reportes falsos (borra también las fotos).
 - **Exportar CSV** de los reportes filtrados (con enlaces a fotos y a Google Maps).
+- **Pedidos de ciudades**: aviso con los pedidos nuevos de los vecinos y lista de ciudades pedidas, con acciones para crearlas o activarlas.
 
 **Seguridad** (en `firestore.rules` y `storage.rules`)
 - Validación de campos, coordenadas limitadas a la región Tacna y fotos de máximo 1.5 MB (solo imágenes).
@@ -94,11 +96,23 @@ Las ciudades viven en la colección `cities` de Firestore. Agregar una ciudad no
 
 Comportamiento:
 - **Al reportar**, la app asigna la ciudad cuya zona contiene el pin. Las reglas de Firestore verifican que la ciudad exista, esté **activa** y que el punto esté dentro de su zona.
-- **Fuera de las ciudades activas**, la app avisa "Huecazo aún no llega a tu zona" y no deja confirmar el pin.
-- **"Toda la ciudad"** encuadra la ciudad donde está la persona, o la primera ciudad activa si está fuera de todas.
+- **Fuera de las ciudades activas**, el inicio muestra el mapa donde está la persona con el aviso "Tu ciudad todavía no está activa" y el botón **Pedir que activen \<ciudad\>** (ver [Pedidos de ciudades](#pedidos-de-ciudades)). Al reportar, no deja confirmar el pin.
+- **"Toda la ciudad"** encuadra la ciudad donde está la persona. Si está fuera de todas, ofrece elegir una ciudad activa.
+- **Ubicación**: el mapa arranca en el Perú entero (o en la última ciudad donde estuvo la persona) y se centra en ella con el GPS. Si el GPS tarda o no hay permiso, usa la ubicación aproximada por IP (`/api/geo`, encabezados `x-vercel-ip-*` de Vercel; en `pnpm dev` no existe y solo se usa el GPS).
 - **En el admin** se filtra por ciudad, y el CSV incluye la columna Ciudad (`huecazo-<ciudad>-AAAA-MM-DD.csv`).
 - **Pausar una ciudad** deja de aceptar reportes nuevos, pero los existentes se siguen viendo. Las ciudades no se borran.
 - **La primera vez que un admin abre el panel**, se crea automáticamente la ciudad **Tacna** y se asigna `cityId` a los reportes antiguos.
+
+### Pedidos de ciudades
+
+Quien abre Huecazo fuera de las ciudades activas puede pedir que activen la suya. El pedido se guarda en la colección `cityRequests` (`{uid}_{lugar}`: uno por persona y ciudad; volver a pedirlo solo actualiza la fecha) con el nombre de la ciudad (Google, a partir del GPS; o la IP), el país y un punto redondeado a ~1 km. Solo los admins pueden leerlos.
+
+En `/admin`, el ícono de **bandeja** muestra cuántos pedidos llegaron desde la última vez que lo abriste (y un aviso arriba de la lista de reportes). Los pedidos se agrupan por ciudad, ordenados por cantidad de vecinos:
+- **Crear ciudad**: abre el editor de ciudades con el nombre ya buscado. Ajusta las zonas, guarda y actívala.
+- **Activar \<ciudad\>**: si la ciudad ya existe pero está pausada.
+- **Descartar**: borra los pedidos de esa ciudad (p. ej. cuando ya la activaste).
+
+> Requiere publicar las reglas de Firestore (`pnpm dlx firebase-tools deploy --only firestore:rules`).
 
 ## Puntos y ranking
 

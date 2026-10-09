@@ -16,20 +16,23 @@ interface Props {
   onSelect?: (report: Report) => void
   /** La persona arrastró el mapa (deja de seguir la vista automática). */
   onUserMove?: () => void
+  /** Dónde arranca el mapa (por defecto, la primera ciudad activa). */
+  defaultCenter?: LatLng
+  defaultZoom?: number
   children?: ReactNode
   className?: string
 }
 
 /** Mapa con los reportes agrupados en burbujas. */
-export function ReportsMap({ reports, userLocation, selectedId, onSelect, onUserMove, children, className }: Props) {
+export function ReportsMap({ reports, userLocation, selectedId, onSelect, onUserMove, defaultCenter, defaultZoom, children, className }: Props) {
   const { defaultCity } = useCities()
   return (
     <Map
       className={className}
       mapId={MAP_ID}
       colorScheme={ColorScheme.LIGHT}
-      defaultCenter={defaultCity.center}
-      defaultZoom={13}
+      defaultCenter={defaultCenter ?? defaultCity.center}
+      defaultZoom={defaultZoom ?? 13}
       gestureHandling="greedy"
       disableDefaultUI
       clickableIcons={false}

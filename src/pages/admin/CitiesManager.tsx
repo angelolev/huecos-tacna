@@ -11,16 +11,27 @@ import { boundsContain } from '../../lib/geo'
 import { PERU_BOUNDS } from '../../lib/types'
 import type { Bounds, City, Report } from '../../lib/types'
 
-type Mode = { kind: 'list' } | { kind: 'edit'; city: City | null }
+type Mode = { kind: 'list' } | { kind: 'edit'; city: City | null; name?: string }
 
 /** Panel para agregar ciudades, ajustar su zona y activarlas o pausarlas. */
-export function CitiesManager({ open, onClose, reports }: { open: boolean; onClose: () => void; reports: Report[] }) {
+export function CitiesManager({
+  open,
+  onClose,
+  reports,
+  createName,
+}: {
+  open: boolean
+  onClose: () => void
+  reports: Report[]
+  /** Abre directo el editor de una ciudad nueva con este nombre (desde los pedidos de los vecinos). */
+  createName?: string | null
+}) {
   const [mode, setMode] = useState<Mode>({ kind: 'list' })
   useBackClose(open, onClose)
 
   useEffect(() => {
-    if (!open) setMode({ kind: 'list' })
-  }, [open])
+    setMode(open && createName ? { kind: 'edit', city: null, name: createName } : { kind: 'list' })
+  }, [open, createName])
 
   useEffect(() => {
     if (!open) return
@@ -53,7 +64,7 @@ export function CitiesManager({ open, onClose, reports }: { open: boolean; onClo
             {mode.kind === 'list' ? (
               <CityList reports={reports} onClose={onClose} onEdit={(city) => setMode({ kind: 'edit', city })} />
             ) : (
-              <CityEditor city={mode.city} onBack={() => setMode({ kind: 'list' })} />
+              <CityEditor key={mode.name} city={mode.city} initialName={mode.name} onBack={() => setMode({ kind: 'list' })} />
             )}
           </motion.div>
         </motion.div>
@@ -155,12 +166,12 @@ const round = (b: Bounds): Bounds => ({
   west: +b.west.toFixed(5),
 })
 
-function CityEditor({ city, onBack }: { city: City | null; onBack: () => void }) {
+function CityEditor({ city, initialName, onBack }: { city: City | null; initialName?: string; onBack: () => void }) {
   const { cities } = useCities()
   const isNew = !city
   const geocodingLib = useMapsLibrary('geocoding')
 
-  const [name, setName] = useState(city?.name ?? '')
+  const [name, setName] = useState(city?.name ?? initialName ?? '')
   const [department, setDepartment] = useState(city?.department ?? '')
   const [enabled, setEnabled] = useState(city?.enabled ?? false)
   const [zones, setZones] = useState<{ bounds: Bounds; viewBounds: Bounds } | null>(
@@ -201,6 +212,14 @@ function CityEditor({ city, onBack }: { city: City | null; onBack: () => void })
       setSearching(false)
     }
   }
+
+  // Viene de un pedido de los vecinos: ubicamos la ciudad apenas carga Google.
+  const autoSearched = useRef(false)
+  useEffect(() => {
+    if (!initialName || !geocodingLib || autoSearched.current) return
+    autoSearched.current = true
+    search()
+  }, [initialName, geocodingLib]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const save = async () => {
     const z = live.current

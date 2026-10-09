@@ -70,6 +70,9 @@ export const TACNA_CITY: City = {
   order: 0,
 }
 
+/** Vista del Perú entero: el mapa arranca aquí mientras ubicamos a la persona. */
+export const PERU_CENTER: LatLng = { lat: -9.2, lng: -75.0 }
+
 /** Límites del Perú (con margen). Toda ciudad debe estar dentro. */
 export const PERU_BOUNDS: Bounds = { north: 0.1, south: -18.6, east: -68.4, west: -81.5 }
 

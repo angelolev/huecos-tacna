@@ -58,8 +58,8 @@ export function trackPage(path: string) {
   }, 400)
 }
 
-/** Acciones clave: reporte enviado, reporte confirmado, cuenta de Google vinculada. */
-export function trackEvent(name: 'report_created' | 'report_confirmed' | 'google_linked', params?: Record<string, string | number>) {
+/** Acciones clave: reporte enviado, reporte confirmado, cuenta de Google vinculada, ciudad pedida. */
+export function trackEvent(name: 'report_created' | 'report_confirmed' | 'google_linked' | 'city_requested', params?: Record<string, string | number>) {
   if (!enabled()) return
   window.gtag?.('event', name, params)
 }

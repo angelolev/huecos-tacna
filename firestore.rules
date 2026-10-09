@@ -49,6 +49,31 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // Pedidos de los vecinos para que Huecazo llegue a su ciudad. Un documento por persona y lugar
+    // ({uid}_{lugar}): volver a pedirlo solo actualiza la fecha. Solo los admins los ven.
+    match /cityRequests/{requestId} {
+      function validCityRequest() {
+        let d = request.resource.data;
+        return d.keys().hasOnly(['uid', 'place', 'region', 'country', 'lat', 'lng', 'source', 'requestedAt'])
+          && d.keys().hasAll(['uid', 'place', 'region', 'country', 'lat', 'lng', 'source', 'requestedAt'])
+          && d.uid == request.auth.uid
+          && requestId.matches('^' + request.auth.uid + '_[a-z0-9-]{1,50}$')
+          && d.place is string && d.place.size() > 0 && d.place.size() <= 80
+          && d.region is string && d.region.size() <= 80
+          && d.country is string && d.country.size() <= 60
+          && d.lat is number && d.lat >= -90 && d.lat <= 90
+          && d.lng is number && d.lng >= -180 && d.lng <= 180
+          && d.source in ['gps', 'ip']
+          && d.requestedAt == request.time;
+      }
+
+      allow read: if isAdmin();
+      allow create: if signedIn() && validCityRequest();
+      allow update: if signedIn() && resource.data.uid == request.auth.uid && validCityRequest();
+      // El admin los descarta cuando ya abrió la ciudad (o no piensa abrirla).
+      allow delete: if isAdmin();
+    }
+
     // Perfil público para el ranking: solo alias + emoji (nunca nombre ni correo).
     match /profiles/{uid} {
       function validProfile() {
