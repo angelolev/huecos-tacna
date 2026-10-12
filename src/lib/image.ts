@@ -1,7 +1,7 @@
 const MAX_SIDE = 1280
 const QUALITY = 0.75
 
-function loadImage(file: File): Promise<HTMLImageElement> {
+function loadImage(file: Blob): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file)
     const img = new Image()
@@ -26,9 +26,9 @@ function toBlob(canvas: HTMLCanvasElement, type: string): Promise<Blob | null> {
  * JPEG (y no WebP) para que la foto sirva como vista previa al compartir en cualquier red
  * (WhatsApp, Facebook, LinkedIn, iMessage), ver api/share.ts.
  */
-export async function compressImage(file: File): Promise<Blob> {
+export async function compressImage(file: Blob, maxSide = MAX_SIDE): Promise<Blob> {
   const img = await loadImage(file)
-  const scale = Math.min(1, MAX_SIDE / Math.max(img.naturalWidth, img.naturalHeight))
+  const scale = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight))
   const canvas = document.createElement('canvas')
   canvas.width = Math.round(img.naturalWidth * scale)
   canvas.height = Math.round(img.naturalHeight * scale)

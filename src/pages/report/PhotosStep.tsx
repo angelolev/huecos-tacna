@@ -1,7 +1,9 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { Camera, ImagePlus, LoaderCircle, X } from 'lucide-react'
 import { compressImage } from '../../lib/image'
+import { checkPhoto } from '../../lib/photoCheck'
+import type { PhotoSlot } from '../../lib/photoCheck'
 import { Lightbox } from '../../components/Lightbox'
 import { haptic } from '../../lib/fx'
 
@@ -15,6 +17,20 @@ const SLOTS = [
   { title: 'Con referencia', hint: 'Opcional · la calle o una fachada', emoji: '🏘️', tilt: 3, tone: 'bg-lavender-soft' },
 ]
 
+const REJECTED: Record<PhotoSlot, Record<'not_road' | 'inappropriate', string>> = {
+  closeup: {
+    not_road: 'No parece una foto de la pista. Toma una foto de cerca del hueco.',
+    inappropriate: 'Esa foto no se puede publicar. Toma una foto de cerca del hueco.',
+  },
+  context: {
+    not_road: 'No sirve como referencia. Toma la calle o una fachada cerca del hueco.',
+    inappropriate: 'Esa foto no se puede publicar. Toma la calle o una fachada cerca del hueco.',
+  },
+}
+
+// How long a message stays on screen before it clears itself.
+const MESSAGE_MS = 7000
+
 export function PhotosStep({
   photos,
   onChange,
@@ -25,28 +41,43 @@ export function PhotosStep({
   const cameraRef = useRef<HTMLInputElement>(null)
   const galleryRef = useRef<HTMLInputElement>(null)
   const [processing, setProcessing] = useState(0)
-  const [error, setError] = useState<string | null>(null)
+  const [errors, setErrors] = useState<string[]>([])
   const [viewing, setViewing] = useState<number | null>(null)
   const full = photos.length >= 2
 
+  useEffect(() => {
+    if (!errors.length) return
+    const timer = setTimeout(() => setErrors([]), MESSAGE_MS)
+    return () => clearTimeout(timer)
+  }, [errors])
+
   const addFiles = async (files: FileList | null) => {
     if (!files?.length) return
-    setError(null)
+    setErrors([])
     const room = 2 - photos.length
     const picked = Array.from(files).filter((f) => f.type.startsWith('image/')).slice(0, room)
-    if (files.length > room) setError('Máximo 2 fotos por reporte.')
+    const messages: string[] = []
+    if (files.length > room) messages.push('Máximo 2 fotos por reporte.')
+    // With several photos picked at once, say which one each message is about.
+    const label = (i: number) => (picked.length > 1 ? `Foto ${i + 1} de ${picked.length}: ` : '')
     setProcessing(picked.length)
     const added: PhotoItem[] = []
-    for (const file of picked) {
+    for (const [i, file] of picked.entries()) {
       try {
         const blob = await compressImage(file)
-        added.push({ blob, preview: URL.createObjectURL(blob) })
+        // The first photo of the report is the close-up; the second one is the wider reference shot.
+        const slot: PhotoSlot = photos.length + added.length === 0 ? 'closeup' : 'context'
+        const verdict = await checkPhoto(blob, slot)
+        if (verdict === 'ok' || verdict === 'unchecked') added.push({ blob, preview: URL.createObjectURL(blob) })
+        else messages.push(label(i) + REJECTED[slot][verdict])
       } catch {
-        setError('No pudimos leer una de las fotos. Prueba con otra.')
+        messages.push(label(i) + 'No pudimos leer la foto. Prueba con otra.')
       }
       setProcessing((n) => n - 1)
     }
-    if (added.length) haptic([10, 30, 10])
+    if (added.length < picked.length) haptic([60, 80, 60])
+    else if (added.length) haptic([10, 30, 10])
+    setErrors(messages)
     onChange([...photos, ...added])
   }
 
@@ -134,7 +165,22 @@ export function PhotosStep({
         onClose={() => setViewing(null)}
       />
 
-      {error && <p className="mt-4 rounded-2xl bg-coral-soft px-4 py-2 text-sm text-coral-deep">{error}</p>}
+      <div role="alert" aria-live="assertive">
+        <AnimatePresence>
+          {errors.length > 0 && (
+            <motion.ul
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="mt-4 space-y-1 rounded-2xl bg-coral-soft px-4 py-2 text-sm text-coral-deep"
+            >
+              {errors.map((message) => (
+                <li key={message}>{message}</li>
+              ))}
+            </motion.ul>
+          )}
+        </AnimatePresence>
+      </div>
 
       <div className="mt-auto grid grid-cols-2 gap-3 pt-8">
         <button className="btn-soft" onClick={() => cameraRef.current?.click()} disabled={full || processing > 0}>
