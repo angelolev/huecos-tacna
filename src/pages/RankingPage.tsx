@@ -1,17 +1,20 @@
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import { ArrowLeft, CircleHelp, LoaderCircle } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useCities } from '../context/CitiesContext'
 import { useReports } from '../hooks/useReports'
 import { usePointsData } from '../hooks/usePoints'
+import { usePrizes } from '../hooks/usePrizes'
 import { useDocumentMeta } from '../hooks/useDocumentMeta'
 import { useBack } from '../hooks/useBack'
 import { PointsHelpSheet } from '../components/PointsHelpSheet'
 import { CHAMPION_RING, ChampionChip, CrownBadge, championMonth } from '../components/ChampionBadge'
 import { levelFor, monthlyChampions, ranking, titlesByUid, totalFor } from '../lib/points'
 import type { Champion, Period, RankingRow } from '../lib/points'
+import { monthKey, placeLabel } from '../lib/prizes'
+import type { Prize } from '../lib/prizes'
 
 const PERIODS: { id: Period; label: string }[] = [
   { id: 'month', label: 'Este mes' },
@@ -26,8 +29,14 @@ export default function RankingPage() {
   const { events, profiles, loading: pointsLoading } = usePointsData(reports)
   const { cities, enabledCities, defaultCity } = useCities()
   const [period, setPeriod] = useState<Period>('month')
-  const [cityId, setCityId] = useState<string>(defaultCity.id)
+  // Desde el inicio llega la ciudad de la persona (?ciudad=arequipa), para que vea su ranking y sus premios.
+  const [params] = useSearchParams()
+  const [cityId, setCityId] = useState<string>(() => {
+    const fromUrl = params.get('ciudad')
+    return fromUrl && cities.some((c) => c.id === fromUrl) ? fromUrl : defaultCity.id
+  })
   const [helpOpen, setHelpOpen] = useState(false)
+  const { prizes } = usePrizes()
   const loading = reportsLoading || pointsLoading
   const back = useBack()
 
@@ -67,6 +76,7 @@ export default function RankingPage() {
   const now = new Date()
   const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
   const reigning = cityChampions.find((c) => c.month.getTime() === lastMonth.getTime()) ?? null
+  const monthPrizes = prizes.filter((p) => p.cityId === cityId && p.month === monthKey(now))
 
   return (
     <div className="min-h-dvh bg-blobs pb-40">
@@ -114,6 +124,8 @@ export default function RankingPage() {
           {period === 'month' ? `Puntos de ${MONTH}` : 'Puntos de siempre'} en{' '}
           {cityOptions.find((c) => c.id === cityId)?.name ?? enabledCities[0]?.name ?? 'tu ciudad'}
         </p>
+
+        {period === 'month' && monthPrizes.length > 0 && <MonthPrizes prizes={monthPrizes} />}
 
         {loading ? (
           <div className="grid place-items-center py-20">
@@ -334,5 +346,42 @@ function HallOfFame({ champions, myUid }: { champions: Champion[]; myUid?: strin
         ))}
       </ol>
     </section>
+  )
+}
+
+/** Premios del mes en curso para la ciudad (los publica el admin). */
+function MonthPrizes({ prizes }: { prizes: Prize[] }) {
+  const now = new Date()
+  const daysLeft = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() - now.getDate()
+  return (
+    <motion.section
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="mb-4 rounded-[28px] bg-gradient-to-br from-butter-soft via-cream-50 to-coral-soft p-4 ring-2 ring-butter"
+      aria-label={`Premios de ${MONTH}`}
+    >
+      <div className="flex items-baseline justify-between gap-2">
+        <p className="font-display text-xl font-semibold">🎁 Premios de {MONTH}</p>
+        <p className="shrink-0 text-xs font-bold text-butter-deep">
+          {daysLeft === 0 ? '¡Último día!' : `Quedan ${daysLeft} ${daysLeft === 1 ? 'día' : 'días'}`}
+        </p>
+      </div>
+      <ul className="mt-3 space-y-2">
+        {prizes.map((p) => (
+          <li key={p.id} className="flex items-center gap-3 rounded-[20px] bg-white/80 px-3 py-2.5">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-butter-soft text-2xl" aria-hidden>
+              {p.emoji}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-butter-deep">{placeLabel(p.place)}</p>
+              <p className="font-semibold leading-snug">{p.title}</p>
+              {p.detail && <p className="text-xs text-ink-muted">{p.detail}</p>}
+              {p.sponsor && <p className="text-[11px] text-ink-faint">Auspicia {p.sponsor}</p>}
+            </div>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-3 text-center text-xs text-ink-soft">Reporta y confirma huecos para sumar puntos y subir en el ranking.</p>
+    </motion.section>
   )
 }

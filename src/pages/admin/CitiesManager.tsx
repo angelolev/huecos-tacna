@@ -403,7 +403,7 @@ function ZonesMap({
   )
 }
 
-function Header({ title, subtitle, onClose }: { title: string; subtitle: string; onClose: () => void }) {
+export function Header({ title, subtitle, onClose }: { title: string; subtitle: string; onClose: () => void }) {
   return (
     <div className="flex items-center gap-3 px-5 pb-4 pt-5">
       <div className="flex-1">

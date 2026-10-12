@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { Ban, BarChart3, Building2, Download, LoaderCircle, LogOut, MapPinned, Search, Trash2, Users, X } from 'lucide-react'
+import { Ban, BarChart3, Building2, Download, Gift, LoaderCircle, LogOut, MapPinned, Search, Trash2, Users, X } from 'lucide-react'
 import { useMap } from '@vis.gl/react-google-maps'
 import { useAuth } from '../../context/AuthContext'
 import { useCities } from '../../context/CitiesContext'
 import { backfillReportCities, cityExists, saveCity } from '../../lib/cities'
 import { boundsContain } from '../../lib/geo'
 import { CitiesManager } from './CitiesManager'
+import { PrizesManager } from './PrizesManager'
 import { CityRequestsButton, CityRequestsPanel, useCityRequests } from './CityRequestsPanel'
 import { MetricsView } from './MetricsView'
 import { usePointsData } from '../../hooks/usePoints'
@@ -41,6 +42,7 @@ export default function AdminPage() {
 
   const [cityFilter, setCityFilter] = useState<string>('all')
   const [citiesOpen, setCitiesOpen] = useState(false)
+  const [prizesOpen, setPrizesOpen] = useState(false)
   // Nombre de la ciudad a crear desde un pedido de los vecinos (abre directo el editor).
   const [createCityName, setCreateCityName] = useState<string | null>(null)
 
@@ -142,6 +144,9 @@ export default function AdminPage() {
             <p className="truncate text-xs text-ink-muted">{user?.email}</p>
           </div>
           <CityRequestsButton unseen={cityRequests.unseen} onClick={openRequests} />
+          <button onClick={() => setPrizesOpen(true)} className="icon-btn" title="Premios del mes" aria-label="Administrar premios del mes">
+            <Gift className="h-4 w-4" />
+          </button>
           <button onClick={() => setCitiesOpen(true)} className="icon-btn" title="Ciudades" aria-label="Administrar ciudades">
             <Building2 className="h-4 w-4" />
           </button>
@@ -310,6 +315,7 @@ export default function AdminPage() {
         </ReportsMap>
         <Legend />
         {selected && <AdminDetail key={selected.id} report={selected} onClose={() => setSelectedId(null)} />}
+        <PrizesManager open={prizesOpen} onClose={() => setPrizesOpen(false)} />
         <CitiesManager
           open={citiesOpen}
           onClose={() => {
@@ -351,6 +357,9 @@ export default function AdminPage() {
                 <CitySelect cities={cities} value={cityFilter} onChange={setCityFilter} reports={reports} cityOf={cityOf} />
               </div>
               <CityRequestsButton unseen={cityRequests.unseen} onClick={openRequests} />
+              <button onClick={() => setPrizesOpen(true)} className="icon-btn" title="Premios del mes" aria-label="Administrar premios del mes">
+                <Gift className="h-4 w-4" />
+              </button>
               <button onClick={() => setCitiesOpen(true)} className="icon-btn" title="Ciudades" aria-label="Administrar ciudades">
                 <Building2 className="h-4 w-4" />
               </button>

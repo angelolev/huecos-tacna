@@ -7,6 +7,8 @@ import { useAuth } from '../context/AuthContext'
 import { useReports } from '../hooks/useReports'
 import { useCountUp } from '../hooks/useCountUp'
 import { useGeoWatch } from '../hooks/useGeoWatch'
+import { usePrizes } from '../hooks/usePrizes'
+import { monthKey } from '../lib/prizes'
 import { useApproxLocation } from '../hooks/useApproxLocation'
 import { useDocumentMeta } from '../hooks/useDocumentMeta'
 import { PointsToast } from '../components/PointsToast'
@@ -99,6 +101,9 @@ export default function HomePage() {
   const myCity = where ? enabledCityFor(where) : null
   const pickedCity = cities.find((c) => c.id === pickedCityId) ?? null
   const contextCity: City | null = pickedCity ?? myCity
+  // Premios del mes en su ciudad: un regalito sobre el trofeo invita a ver el ranking.
+  const { prizes } = usePrizes()
+  const hasPrizes = !!contextCity && prizes.some((p) => p.cityId === contextCity.id && p.month === monthKey())
   // La IP de los celulares a veces apunta a otra ciudad (p. ej. Lima): solo decimos "fuera de zona"
   // con la IP si el GPS no está disponible.
   const outsideCities = !!where && !myCity && !pickedCity && !gpsPending
@@ -258,8 +263,17 @@ export default function HomePage() {
             <Logo />
           </div>
           <div className="flex gap-2">
-            <Link to="/ranking" className="icon-btn" aria-label="Ranking de vecinos">
+            <Link
+              to={contextCity ? `/ranking?ciudad=${contextCity.id}` : '/ranking'}
+              className="icon-btn relative"
+              aria-label={hasPrizes ? 'Ranking de vecinos (hay premios este mes)' : 'Ranking de vecinos'}
+            >
               <Trophy className="h-5 w-5 text-butter-deep" />
+              {hasPrizes && (
+                <span className="absolute -right-1 -top-1 grid h-5 w-5 place-items-center rounded-full bg-butter text-[11px] shadow-soft ring-2 ring-white" aria-hidden>
+                  🎁
+                </span>
+              )}
             </Link>
             <button onClick={() => setAccountOpen(true)} className="icon-btn overflow-hidden" aria-label="Tu cuenta">
               {user?.photoURL ? (
