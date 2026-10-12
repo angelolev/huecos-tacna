@@ -92,7 +92,7 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // Las confirmaciones (solo la fecha; el id es el uid anónimo) son públicas para calcular los puntos.
+    // Las confirmaciones (fecha y posición redondeada cerca del hueco; el id es el uid anónimo) son públicas para calcular los puntos.
     match /{path=**}/confirmations/{uid} {
       allow read: if true;
     }
@@ -265,9 +265,18 @@ service cloud.firestore {
 
       match /confirmations/{uid} {
         allow read: if signedIn() && request.auth.uid == uid;
+        // Solo confirma quien está cerca del hueco: su posición (redondeada) debe caer a ~165 m del reporte.
+        function nearReport(c) {
+          let r = get(reportPath()).data;
+          return c.lat is number && c.lng is number
+            && math.abs(c.lat - r.lat) <= 0.0015 && math.abs(c.lng - r.lng) <= 0.0016;
+        }
+
         allow create: if signedIn() && request.auth.uid == uid
-          && request.resource.data.keys().hasOnly(['createdAt'])
+          && request.resource.data.keys().hasOnly(['createdAt', 'lat', 'lng'])
+          && request.resource.data.keys().hasAll(['createdAt', 'lat', 'lng'])
           && request.resource.data.createdAt == request.time
+          && nearReport(request.resource.data)
           && getAfter(reportPath()).data.confirmations == get(reportPath()).data.confirmations + 1;
       }
     }

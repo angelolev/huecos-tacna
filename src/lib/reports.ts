@@ -173,13 +173,20 @@ export async function hasConfirmed(reportId: string, uid: string) {
   return snap.exists()
 }
 
-export async function confirmReport(reportId: string, uid: string) {
+/** `at`: dónde estaba la persona al confirmar (las reglas exigen que esté cerca del hueco). */
+export async function confirmReport(reportId: string, uid: string, at: LatLng) {
   const batch = writeBatch(db)
   batch.update(doc(reportsCol, reportId), {
     confirmations: increment(1),
     lastConfirmedAt: serverTimestamp(),
   })
-  batch.set(doc(db, 'reports', reportId, 'confirmations', uid), { createdAt: serverTimestamp() })
+  // Redondeado a ~10 m: la confirmación es pública y no hace falta más precisión.
+  const round = (n: number) => Math.round(n * 1e4) / 1e4
+  batch.set(doc(db, 'reports', reportId, 'confirmations', uid), {
+    createdAt: serverTimestamp(),
+    lat: round(at.lat),
+    lng: round(at.lng),
+  })
   await batch.commit()
 }
 

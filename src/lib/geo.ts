@@ -1,6 +1,6 @@
 import type { Bounds, LatLng } from './types'
 
-export function getCurrentPosition(): Promise<LatLng & { accuracy: number }> {
+export function getCurrentPosition(maximumAge = 0): Promise<LatLng & { accuracy: number }> {
   return new Promise((resolve, reject) => {
     if (!('geolocation' in navigator)) {
       reject(new Error('Tu navegador no soporta geolocalización'))
@@ -14,7 +14,7 @@ export function getCurrentPosition(): Promise<LatLng & { accuracy: number }> {
           accuracy: pos.coords.accuracy,
         }),
       (err) => reject(err),
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge },
     )
   })
 }
@@ -25,6 +25,18 @@ export function googleMapsLink({ lat, lng }: LatLng) {
 
 export function formatCoords({ lat, lng }: LatLng) {
   return `${lat.toFixed(5)}, ${lng.toFixed(5)}`
+}
+
+/** Distancia máxima al hueco para poder confirmarlo ("Yo también lo vi"). */
+export const CONFIRM_RADIUS_M = 100
+/** Margen extra por la imprecisión del GPS al confirmar (las reglas de Firestore aceptan hasta ~165 m). */
+export const CONFIRM_ACCURACY_SLACK_M = 50
+
+/** ¿Esta lectura del GPS está lo bastante cerca del hueco para confirmarlo? */
+export function nearEnoughToConfirm(here: LatLng & { accuracy: number }, report: LatLng) {
+  const meters = metersBetween(here, report)
+  return meters - Math.min(here.accuracy, CONFIRM_ACCURACY_SLACK_M) <= CONFIRM_RADIUS_M
+    && meters <= CONFIRM_RADIUS_M + CONFIRM_ACCURACY_SLACK_M
 }
 
 /** Radio de "cerca de mí" en el mapa principal. */

@@ -5,6 +5,7 @@ import { ArrowLeft, ArrowRight, Clock, X } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useCities } from '../../context/CitiesContext'
 import { haptic } from '../../lib/fx'
+import { CONFIRM_RADIUS_M, nearEnoughToConfirm } from '../../lib/geo'
 import { useGeoWatch } from '../../hooks/useGeoWatch'
 import { useDocumentMeta } from '../../hooks/useDocumentMeta'
 import { useBack } from '../../hooks/useBack'
@@ -154,7 +155,15 @@ export default function ReportPage() {
     if (!user) return
     try {
       if (r.reporterUid !== user.uid && !(await hasConfirmed(r.id, user.uid))) {
-        await confirmReport(r.id, user.uid)
+        // El pin se puede mover a mano: para confirmar vale el GPS, no el pin.
+        const here = geo.fix
+        if (!here || !nearEnoughToConfirm(here, r)) {
+          setCandidates([])
+          setError(`Para confirmar un reporte tienes que estar a menos de ${CONFIRM_RADIUS_M} m del hueco.`)
+          goTo(2)
+          return
+        }
+        await confirmReport(r.id, user.uid, here)
         trackEvent('report_confirmed', { source: 'al_reportar' })
       }
       finish()
