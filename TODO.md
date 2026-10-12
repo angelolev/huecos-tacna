@@ -10,6 +10,7 @@
 
 ## Páginas legales
 
-- [ ] **Política de privacidad** (`/privacidad`): qué datos se guardan (fotos, ubicación, alias), que las fotos se envían a Anthropic para revisarlas con IA, Google Analytics, y cómo pedir que se borre un reporte.
-- [ ] **Acerca de** (`/acerca`, ya existe): mencionar que las fotos se revisan automáticamente con IA y enlazar la política de privacidad.
-- [ ] Enlazar la política de privacidad desde el pie de página o la hoja de cuenta, y desde el paso de fotos.
+- [x] **Política de privacidad** (`/privacidad`): responsable (Coding Latam), datos que se recogen, revisión de fotos con IA (Anthropic), proveedores (Google, Vercel, Anthropic), conservación y derechos ARCO (Ley 29733).
+- [x] **Acerca de**: pregunta frecuente sobre por qué se rechaza una foto y enlace a la política.
+- [x] Enlaces a la política desde la hoja de cuenta y el paso de fotos; `/privacidad` en `sitemap.xml`.
+- [ ] Que un abogado revise la política, sobre todo la edad mínima (14 años) y si hay que inscribir el banco de datos ante la Autoridad Nacional de Protección de Datos Personales.

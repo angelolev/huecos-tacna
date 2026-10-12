@@ -14,6 +14,7 @@ const ReportPage = lazyWithReload(() => import('./pages/report/ReportPage'))
 const MyReportsPage = lazyWithReload(() => import('./pages/MyReportsPage'))
 const AdminGate = lazyWithReload(() => import('./pages/admin/AdminGate'))
 const AboutPage = lazyWithReload(() => import('./pages/AboutPage'))
+const PrivacyPage = lazyWithReload(() => import('./pages/PrivacyPage'))
 const RankingPage = lazyWithReload(() => import('./pages/RankingPage'))
 const NeighborPage = lazyWithReload(() => import('./pages/NeighborPage'))
 
@@ -76,6 +77,7 @@ function AppRoutes() {
         <Route path="/mis-reportes" element={<MyReportsPage />} />
         <Route path="/admin" element={<AdminGate />} />
         <Route path="/acerca" element={<AboutPage />} />
+        <Route path="/privacidad" element={<PrivacyPage />} />
         <Route path="/ranking" element={<RankingPage />} />
         <Route path="/vecino/:uid" element={<NeighborPage />} />
         {/* Enlace para compartir un reporte (con vista previa de su foto, ver api/share.ts) */}
