@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import { Camera, ImagePlus, LoaderCircle, X } from 'lucide-react'
 import { compressImage } from '../../lib/image'
@@ -93,6 +94,12 @@ export function PhotosStep({
         Toma una foto <span className="text-coral-deep">del hueco</span> 📸
       </h1>
       <p className="mt-2 text-ink-muted">Hasta 2 fotos. Las achicamos para que suban rápido con tus datos.</p>
+      <p className="mt-1 text-xs text-ink-faint">
+        Las revisamos con IA para que solo se publiquen huecos.{' '}
+        <Link to="/privacidad" className="underline">
+          Privacidad
+        </Link>
+      </p>
 
       <div className="mt-7 grid grid-cols-2 gap-4">
         {SLOTS.map((slot, i) => {

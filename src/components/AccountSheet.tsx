@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronRight, Cloud, Info, LayoutDashboard, ListChecks, LogOut } from 'lucide-react'
+import { ChevronRight, Cloud, Info, LayoutDashboard, ListChecks, LogOut, ShieldCheck } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { BottomSheet } from './BottomSheet'
 import { GoogleButton } from './GoogleButton'
@@ -88,6 +88,13 @@ export function AccountSheet({ open, onClose }: { open: boolean; onClose: () => 
             icon={<Info className="h-5 w-5" />}
             tone="bg-sky-soft text-sky-deep"
             label="¿Qué es Huecazo?"
+            onClick={onClose}
+          />
+          <SheetLink
+            to="/privacidad"
+            icon={<ShieldCheck className="h-5 w-5" />}
+            tone="bg-mint-soft text-mint-deep"
+            label="Privacidad"
             onClick={onClose}
           />
           {isAdmin && (

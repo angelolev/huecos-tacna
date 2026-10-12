@@ -38,6 +38,10 @@ function faqs(cities: string) {
       a: 'Sí. Usamos Google Analytics para contar visitas de forma agregada (por ejemplo, desde qué ciudades se conectan los vecinos) y así mejorar Huecazo. No lo usamos para publicidad ni para saber quién eres.',
     },
     {
+      q: '¿Por qué me rechazó una foto?',
+      a: 'Revisamos cada foto automáticamente con inteligencia artificial (Claude, de Anthropic) para que en el mapa solo haya huecos y nada inapropiado. La primera foto tiene que mostrar el hueco o la pista de cerca; la segunda puede ser la calle o una fachada cercana. Solo enviamos la foto, sin tus datos.',
+    },
+    {
       q: '¿Cómo sé si ya lo repararon?',
       a: 'Cada reporte pasa por tres estados: reportado, verificado y reparado. Puedes seguirlos en "Mis reportes".',
     },
@@ -162,6 +166,13 @@ export default function AboutPage() {
               </details>
             ))}
           </div>
+          <p className="mt-4 text-center text-sm text-ink-muted">
+            ¿Quieres saber más sobre tus datos? Lee nuestra{' '}
+            <Link to="/privacidad" className="font-semibold text-coral-deep underline">
+              política de privacidad
+            </Link>
+            .
+          </p>
         </section>
 
         <section className="card mt-12 p-6 text-center">
